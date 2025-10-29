@@ -44,7 +44,7 @@ export function FindMentorCTA() {
             initial={{ opacity: 0, y: 20 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-3xl md:text-4xl font-bold text-primary dark:text-white mb-4"
+            className="text-3xl md:text-4xl font-bold text-primary/90 dark:text-white mb-4"
           >
             Encontre Seu Mentor
           </motion.h2>
@@ -54,7 +54,7 @@ export function FindMentorCTA() {
             initial={{ opacity: 0, y: 20 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="text-lg text-primary dark:text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed"
+            className="text-lg text-text-primary/30 dark:text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed"
           >
             Conecte-se com profissionais experientes que já trilharam o caminho que você quer seguir. 
             Mentoria personalizada para seus objetivos específicos.
@@ -99,18 +99,18 @@ export function FindMentorCTA() {
             initial={{ opacity: 0 }}
             animate={inView ? { opacity: 1 } : {}}
             transition={{ duration: 0.6, delay: 0.6 }}
-            className="flex flex-wrap justify-center gap-6 text-sm text-primary dark:text-gray-400"
+            className="flex flex-wrap justify-center gap-6 text-sm text-gray-900 dark:text-gray-400"
           >
             <div className="flex items-center gap-2">
-              <VerifiedIcon className="w-4 h-4 text-primary" />
+              <VerifiedIcon className="w-4 h-4 text-gray-900" />
               Mentores verificados
             </div>
             <div className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-primary" />
+              <CreditCard className="w-4 h-4 text-gray-900" />
               Pagamentos Seguros
             </div>
             <div className="flex items-center gap-2">
-              <CircleXIcon className="w-4 h-4 text-primary" />
+              <CircleXIcon className="w-4 h-4 text-gray-900" />
               Cancelamento flexível
             </div>
           </motion.div>
