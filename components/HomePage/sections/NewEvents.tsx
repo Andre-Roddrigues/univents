@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Star
 } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 export default function RecentEvents() {
@@ -266,11 +267,12 @@ export default function RecentEvents() {
                         {formatPrice(event.price)}
                       </span>
                     </div>
-                    
-                    <button className="flex items-center gap-2 px-4 py-2 bg-secondary text-primary rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+                    <Link href={`/eventos/comprar/${event.id}`}>
+                    <button className="flex items-center gap-2 px-4 py-2 bg-secondary text-primary rounded-lg text-sm font-medium hover:bg-secondary/90 transition-colors">
                       Comprar
                       <ArrowRight className="w-4 h-4" />
                     </button>
+                    </Link>
                   </div>
                 </div>
               </div>
