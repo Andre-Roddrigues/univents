@@ -112,16 +112,16 @@ export function FindMentorCTA() {
           >
             <div className="flex items-center gap-2">
               <VerifiedIcon className="w-4 h-4 text-gray-900" />
-              Mentores verificados
+              Eventos Actualizados
             </div>
             <div className="flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-gray-900" />
               Pagamentos Seguros
             </div>
-            <div className="flex items-center gap-2">
+            {/* <div className="flex items-center gap-2">
               <CircleXIcon className="w-4 h-4 text-gray-900" />
               Cancelamento flexível
-            </div>
+            </div> */}
           </motion.div>
         </motion.div>
       </div>
