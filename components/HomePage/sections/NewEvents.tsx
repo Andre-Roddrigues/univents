@@ -287,10 +287,12 @@ export default function RecentEvents() {
           transition={{ duration: 0.6, delay: 0.3 }}
           className="text-center"
         >
+            <Link href="/eventos">
           <button className="inline-flex items-center gap-2 px-8 py-4 border border-primary text-primary rounded-lg font-semibold hover:bg-primary hover:text-primary-foreground transition-all duration-300">
             Ver Todos os Eventos
             <ArrowRight className="w-5 h-5" />
           </button>
+          </Link>
         </motion.div>
       </div>
     </section>

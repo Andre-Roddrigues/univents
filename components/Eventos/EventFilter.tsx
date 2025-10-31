@@ -85,7 +85,7 @@ const EventFilter: React.FC<EventFilterProps> = ({
           <div className="flex border border-border rounded-lg overflow-hidden">
             <button
               onClick={() => onViewModeChange('grid')}
-              className={`p-2 ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'bg-background'}`}
+              className={`p-2 ${viewMode === 'grid' ? 'bg-secondary text-primary' : 'bg-background'}`}
             >
               <Grid className="w-4 h-4" />
             </button>
