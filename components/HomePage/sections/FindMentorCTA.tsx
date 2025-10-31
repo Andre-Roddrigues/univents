@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Users, Star, Zap, CreditCard, VerifiedIcon, CircleXIcon } from 'lucide-react';
+import { ArrowRight, Users, Star, Zap, CreditCard, VerifiedIcon, CircleXIcon, SearchIcon, Ticket } from 'lucide-react';
 import Link from 'next/link';
 
 export function FindMentorCTA() {
@@ -46,7 +46,7 @@ export function FindMentorCTA() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-3xl md:text-4xl font-bold text-primary/90 dark:text-white mb-4"
           >
-            Encontre Seu Mentor
+             Pronto para a próxima experiência?
           </motion.h2>
 
           {/* Description */}
@@ -54,10 +54,9 @@ export function FindMentorCTA() {
             initial={{ opacity: 0, y: 20 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="text-lg text-text-primary/30 dark:text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed"
+            className="text-lg text-primary dark:text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed"
           >
-            Conecte-se com profissionais experientes que já trilharam o caminho que você quer seguir. 
-            Mentoria personalizada para seus objetivos específicos.
+           Junta-te a milhares de pessoas que já descobriram eventos incríveis através da Univents
           </motion.p>
 
           {/* Stats */}
@@ -82,13 +81,23 @@ export function FindMentorCTA() {
             transition={{ duration: 0.6, delay: 0.5 }}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8"
           >
-            <Link href="/mentores">
+            <Link href="/eventos">
             <Button 
               size="lg"
               className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 text-base font-semibold"
             >
-              <Users className="w-5 h-5 mr-2" />
-              Ver Mentores
+              <SearchIcon className="w-5 h-5 mr-2" />
+              Explorar Eventos
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+            </Link>
+            <Link href="/eventos">
+            <Button 
+              size="lg"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 text-base font-semibold"
+            >
+              <Ticket className="w-5 h-5 mr-2" />
+              Vender Bilhetes
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
             </Link>

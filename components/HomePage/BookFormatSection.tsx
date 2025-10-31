@@ -20,7 +20,7 @@ function MentorshipFormatSection() {
             </div>
           </div>
           <Link
-            href="/mentores?tipo=basica"
+            href="/eventos?tipo=basica"
             className="absolute inset-0 z-10"
             aria-label="Ver Mentoria Básica"
           />
@@ -39,7 +39,7 @@ function MentorshipFormatSection() {
             </div>
           </div>
           <Link
-            href="/mentores?tipo=express"
+            href="/eventos?tipo=express"
             className="absolute inset-0 z-10"
             aria-label="Ver Mentoria Express"
           />
@@ -60,7 +60,7 @@ function MentorshipFormatSection() {
             </div>
           </div>
           <Link
-            href="/mentores?tipo=executiva"
+            href="/eventos?tipo=executiva"
             className="absolute inset-0 z-10"
             aria-label="Ver Mentoria Executiva"
           />
@@ -79,7 +79,7 @@ function MentorshipFormatSection() {
             </div>
           </div>
           <Link
-            href="/mentores?tipo=especializada"
+            href="/eventos?tipo=especializada"
             className="absolute inset-0 z-10"
             aria-label="Ver Mentoria Especializada"
           />
@@ -98,7 +98,7 @@ function MentorshipFormatSection() {
             </div>
           </div>
           <Link
-            href="/mentores?tipo=continua"
+            href="/eventos?tipo=continua"
             className="absolute inset-0 z-10"
             aria-label="Ver Mentoria Contínua"
           />

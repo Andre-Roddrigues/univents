@@ -1,77 +1,80 @@
-import { BookingStats } from '@/types/user';
-import { Calendar, CheckCircle, XCircle, Clock } from 'lucide-react';
+'use client';
 
-interface StatsCardsProps {
-  stats: BookingStats;
+import { motion } from 'framer-motion';
+import { Ticket, Calendar, Star, TrendingUp } from 'lucide-react';
+import React from 'react';
+
+interface StatsProps {
+  totalTickets: number;
+  upcomingEvents: number;
+  totalSpent: number;
+  favoriteCategory: string;
 }
 
-export function StatsCards({ stats }: StatsCardsProps) {
-  const statItems = [
+const Stats: React.FC<StatsProps> = ({ 
+  totalTickets, 
+  upcomingEvents, 
+  totalSpent, 
+  favoriteCategory 
+}) => {
+  const stats = [
     {
-      label: 'Total de Sessões',
-      value: stats.total,
+      icon: Ticket,
+      label: 'Total de Bilhetes',
+      value: totalTickets.toString(),
+      description: 'Bilhetes adquiridos'
+    },
+    {
       icon: Calendar,
-      color: 'blue',
-      delay: '0'
+      label: 'Próximos Eventos',
+      value: upcomingEvents.toString(),
+      description: 'Eventos por vir'
     },
+    // {
+    //   icon: TrendingUp,
+    //   label: 'Total Gasto',
+    //   value: `${totalSpent} MZN`,
+    //   description: 'Em compras de bilhetes'
+    // },
     {
-      label: 'Próximas',
-      value: stats.upcoming,
-      icon: Clock,
-      color: 'orange',
-      delay: '100'
-    },
-    {
-      label: 'Concluídas',
-      value: stats.completed,
-      icon: CheckCircle,
-      color: 'green',
-      delay: '200'
-    },
-    {
-      label: 'Canceladas',
-      value: stats.cancelled,
-      icon: XCircle,
-      color: 'red',
-      delay: '300'
+      icon: Star,
+      label: 'Categoria Preferida',
+      value: favoriteCategory,
+      description: 'Tipo de evento mais frequente'
     }
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      {statItems.map((item) => (
-        <div 
-          key={item.label}
-          className="group relative"
-          style={{
-            animationDelay: `${item.delay}ms`
-          }}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      {stats.map((stat, index) => (
+        <motion.div
+          key={stat.label}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: index * 0.1 }}
+          className="bg-card border border-border rounded-xl p-6 hover:shadow-md transition-all duration-300"
         >
-          {/* Efeito de brilho no hover */}
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-green-600 rounded-2xl blur opacity-0 group-hover:opacity-30 transition duration-1000 group-hover:duration-200" />
-          
-          {/* Card principal */}
-          <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-3xl font-bold bg-gradient-to-br from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-                  {item.value}
-                </p>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mt-1">
-                  {item.label}
-                </p>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+              <stat.icon className="w-6 h-6 text-primary" />
+            </div>
+            
+            <div>
+              <div className="text-2xl font-bold text-foreground mb-1">
+                {stat.value}
               </div>
-              
-              <div className="relative">
-                <div className="absolute inset-0  rounded-full blur group-hover:blur-lg transition duration-1000 group-hover:duration-200" />
-                <div className="relative bg-white dark:bg-gray-800 p-3 rounded-full  group-hover:scale-110 transition-transform duration-300">
-                  <item.icon className="w-6 h-6 text-primary dark:text-gray-300" />
-                </div>
+              <div className="text-sm font-medium text-foreground">
+                {stat.label}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {stat.description}
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       ))}
     </div>
   );
-}   
+};
+
+export default Stats;

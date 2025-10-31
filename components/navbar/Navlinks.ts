@@ -1,7 +1,7 @@
 export const navLinks = [
   { href: "/", label: "Início" },
-  { href: "/mentores", label: "Mentores" },
+  { href: "/eventos", label: "Eventos" },
   { href: "/#comoFunciona", label: "Como Funciona" },
   // { href: "/mentorias", label: "Mentorias" },
-  { href: "/perfil", label: "Minhas Sessões" },
+  { href: "/perfil", label: "Meus Bilhetes" },
 ];

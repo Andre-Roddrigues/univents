@@ -221,7 +221,7 @@ export default function MentorDetailPage({ params }: Params) {
   return (
     <Container>
       <div className="py-8">
-        <Link href="/mentores" className="text-primary hover:underline mb-6 inline-block">
+        <Link href="/eventos" className="text-primary hover:underline mb-6 inline-block">
           ← Voltar para mentores
         </Link>
 
@@ -396,7 +396,7 @@ export default function MentorDetailPage({ params }: Params) {
                     </div>
                   </div>
                 )}
-                <Link href={`/mentores/agendar/${mentor.id}`}>
+                <Link href={`/eventos/agendar/${mentor.id}`}>
                   <Button className="w-full mt-4  bg-primary text-primary-foreground hover:bg-primary/90">
                     Agendar Sessão
                   </Button>

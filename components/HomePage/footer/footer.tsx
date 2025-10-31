@@ -127,7 +127,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/mentores"
+                  href="/eventos"
                   className="text-gray-400 hover:text-blue-300 transition-colors duration-300 flex items-center py-1"
                 >
                   <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2 opacity-0 group-hover:opacity-100 transition-opacity"></span>

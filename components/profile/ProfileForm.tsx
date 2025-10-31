@@ -1,217 +1,212 @@
-
 'use client';
 
+import { motion } from 'framer-motion';
 import { useState } from 'react';
-import { User } from '@/types/user';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Save, Edit } from 'lucide-react';
-import Image from 'next/image';
-import { Switch } from '../ui/Switch';
+import { User, Mail, Phone, MapPin, Camera } from 'lucide-react';
 
-interface ProfileFormProps {
-  user: User;
-  onSave: (userData: Partial<User>) => void;
+interface UserProfile {
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  bio: string;
+  avatar?: string;
 }
 
-export function ProfileForm({ user, onSave }: ProfileFormProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    location: user.location,
-    bio: user.bio,
-    preferences: user.preferences
-  });
+interface PerfilFormProps {
+  profile: UserProfile;
+  onSave: (profile: UserProfile) => void;
+  onCancel: () => void;
+}
 
-  const handleSave = () => {
+export default function PerfilForm({ profile, onSave, onCancel }: PerfilFormProps) {
+  const [formData, setFormData] = useState<UserProfile>(profile);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     onSave(formData);
     setIsEditing(false);
   };
 
   const handleCancel = () => {
-    setFormData({
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      location: user.location,
-      bio: user.bio,
-      preferences: user.preferences
-    });
+    setFormData(profile);
     setIsEditing(false);
+    onCancel();
+  };
+
+  const handleChange = (field: keyof UserProfile, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-card border border-border rounded-xl p-6 mb-8"
+    >
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold">Dados Pessoais</h3>
-        {!isEditing ? (
-          <Button variant="outline" onClick={() => setIsEditing(true)}>
-            <Edit className="w-4 h-4 mr-2" />
-            Editar
-          </Button>
-        ) : (
-          <div className="flex space-x-2">
-            <Button variant="outline" onClick={handleCancel}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave}>
-              <Save className="w-4 h-4 mr-2" />
-              Salvar
-            </Button>
-          </div>
+        <h2 className="text-2xl font-bold text-foreground">Perfil Pessoal</h2>
+        {!isEditing && (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+          >
+            Editar Perfil
+          </button>
         )}
       </div>
 
-      <div className="space-y-6">
-        {/* Foto de Perfil */}
-        <div className="flex items-center space-x-4">
-          <div className="relative h-20 w-20">
-            <Image
-              src={user.avatar}
-              alt={user.name}
-              fill
-              className="rounded-full object-cover"
-            />
-          </div>
-          {isEditing && (
-            <Button variant="outline" size="sm">
-              Alterar Foto
-            </Button>
-          )}
-        </div>
-
-        {/* Formulário */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="name">Nome Completo</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              disabled={!isEditing}
-            />
-          </div>
+      <form onSubmit={handleSubmit}>
+        <div className="flex flex-col lg:flex-row gap-6 mb-6">
           
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-              disabled={!isEditing}
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="phone">Telefone</Label>
-            <Input
-              id="phone"
-              value={formData.phone}
-              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-              disabled={!isEditing}
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="location">Localização</Label>
-            <Input
-              id="location"
-              value={formData.location}
-              onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-              disabled={!isEditing}
-            />
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="bio">Biografia</Label>
-          <Textarea
-            id="bio"
-            value={formData.bio}
-            onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
-            disabled={!isEditing}
-            placeholder="Conte um pouco sobre você..."
-            rows={4}
-          />
-        </div>
-
-        {/* Preferências */}
-        <div className="border-t pt-6">
-          <h4 className="font-medium mb-4">Preferências de Notificação</h4>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="notifications" className="font-normal">
-                  Notificações no App
-                </Label>
-                <p className="text-sm text-gray-500">
-                  Receba lembretes de sessões e atualizações
-                </p>
+          {/* Avatar Section */}
+          <div className="flex flex-col items-center lg:items-start">
+            <div className="relative mb-4">
+              <div className="w-24 h-24 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center">
+                {formData.avatar ? (
+                  <img
+                    src={formData.avatar}
+                    alt="Profile"
+                    className="w-24 h-24 rounded-full object-cover"
+                  />
+                ) : (
+                  <User className="w-12 h-12 text-primary" />
+                )}
               </div>
-              <Switch
-                id="notifications"
-                checked={formData.preferences.notifications}
-                onCheckedChange={(checked) => 
-                  setFormData(prev => ({
-                    ...prev,
-                    preferences: { ...prev.preferences, notifications: checked }
-                  }))
-                }
-                disabled={!isEditing}
-              />
+              
+              {isEditing && (
+                <button
+                  type="button"
+                  className="absolute bottom-0 right-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+              )}
             </div>
             
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="emailUpdates" className="font-normal">
-                  Emails de Atualização
-                </Label>
-                <p className="text-sm text-gray-500">
-                  Receba novidades e dicas por email
-                </p>
-              </div>
-              <Switch
-                id="emailUpdates"
-                checked={formData.preferences.emailUpdates}
-                onCheckedChange={(checked) => 
-                  setFormData(prev => ({
-                    ...prev,
-                    preferences: { ...prev.preferences, emailUpdates: checked }
-                  }))
-                }
-                disabled={!isEditing}
-              />
-            </div>
+            {isEditing && (
+              <p className="text-sm text-muted-foreground text-center lg:text-left">
+                Clique para alterar a foto
+              </p>
+            )}
+          </div>
+
+          {/* Form Fields */}
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
             
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="smsReminders" className="font-normal">
-                  Lembretes por SMS
-                </Label>
-                <p className="text-sm text-gray-500">
-                  Receba SMS antes das sessões
-                </p>
+            {/* Name */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Nome Completo
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleChange('name', e.target.value)}
+                  disabled={!isEditing}
+                  className="w-full pl-10 pr-4 py-3 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
               </div>
-              <Switch
-                id="smsReminders"
-                checked={formData.preferences.smsReminders}
-                onCheckedChange={(checked) => 
-                  setFormData(prev => ({
-                    ...prev,
-                    preferences: { ...prev.preferences, smsReminders: checked }
-                  }))
-                }
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Email
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleChange('email', e.target.value)}
+                  disabled={!isEditing}
+                  className="w-full pl-10 pr-4 py-3 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Telefone
+              </label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => handleChange('phone', e.target.value)}
+                  disabled={!isEditing}
+                  className="w-full pl-10 pr-4 py-3 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            {/* Location */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Localização
+              </label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <input
+                  type="text"
+                  value={formData.location}
+                  onChange={(e) => handleChange('location', e.target.value)}
+                  disabled={!isEditing}
+                  className="w-full pl-10 pr-4 py-3 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            {/* Bio */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Bio
+              </label>
+              <textarea
+                value={formData.bio}
+                onChange={(e) => handleChange('bio', e.target.value)}
                 disabled={!isEditing}
+                rows={4}
+                className="w-full px-4 py-3 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed resize-none"
+                placeholder="Escreva uma breve descrição sobre si..."
               />
             </div>
           </div>
         </div>
-      </div>
-    </div>
+
+        {/* Action Buttons */}
+        {isEditing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex gap-3 justify-end pt-4 border-t border-border"
+          >
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="px-6 py-3 border border-border text-foreground rounded-lg hover:bg-muted transition-colors font-medium"
+            >
+              Cancelar
+            </button>
+            
+            <button
+              type="submit"
+              className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+            >
+              Guardar Alterações
+            </button>
+          </motion.div>
+        )}
+      </form>
+    </motion.div>
   );
 }

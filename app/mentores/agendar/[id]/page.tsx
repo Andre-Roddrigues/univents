@@ -1,4 +1,4 @@
-// app/mentores/agendar/[mentorId]/page.tsx
+// app/eventos/agendar/[mentorId]/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -101,7 +101,7 @@ export default function AgendarPage() {
 
         // Redirecionar após sucesso
         setTimeout(() => {
-            router.push('/mentores');
+            router.push('/eventos');
         }, 3000);
     };
 
@@ -119,7 +119,7 @@ export default function AgendarPage() {
                         <p className="text-gray-600 dark:text-gray-400 mb-8">
                             Sua sessão com {mentor.name} foi agendada para {bookingData.selectedDate} às {bookingData.selectedTime}
                         </p>
-                        <Button onClick={() => router.push('/mentores')}>
+                        <Button onClick={() => router.push('/eventos')}>
                             Voltar para Mentores
                         </Button>
                     </div>

@@ -97,7 +97,7 @@ export function MentorCard({ mentor, viewMode = 'grid' }: MentorCardProps) {
                     /hora
                   </span>
                 </div>
-                <Link href={`/mentores/${mentor.id}`}>
+                <Link href={`/eventos/${mentor.id}`}>
                   <Button className="bg-primary text-white hover:bg-primary/90 px-6 py-2 rounded-full shadow-md hover:shadow-lg transition-all duration-300">
                     Ver Perfil
                   </Button>
@@ -187,7 +187,7 @@ export function MentorCard({ mentor, viewMode = 'grid' }: MentorCardProps) {
               /hora
             </span>
           </div>
-          <Link href={`/mentores/${mentor.id}`}>
+          <Link href={`/eventos/${mentor.id}`}>
             <Button className="bg-primary text-white hover:bg-primary/90 px-6 py-2 rounded-full shadow-md hover:shadow-lg transition-all duration-300">
               Ver Perfil
             </Button>

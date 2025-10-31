@@ -1,199 +1,133 @@
-// components/sections/HowItWorks.tsx
 'use client';
 
-import { motion, Variants } from 'framer-motion';
-import { useInView } from 'react-intersection-observer';
+import { motion } from 'framer-motion';
 import { 
-  Search, 
-  Users, 
   Calendar, 
-  Video, 
-  Star,
-  ArrowRight,
-  CheckCircle,
+  Ticket, 
+  CreditCard, 
+  Smartphone,
+  Users,
+  MapPin,
   Clock,
-  Target,
-  Award,
-  Zap
+  CheckCircle,
+  Star,
+  Zap,
+  Award
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
-export function HowItWorks() {
-  const [ref, inView] = useInView({
-    triggerOnce: true,
-    threshold: 0.1,
-  });
-
+export default function HowItWorks() {
   const steps = [
     {
       step: '01',
-      icon: Search,
-      title: 'Encontre Seu Mentor Ideal',
-      description: 'Use nosso sistema de match inteligente para encontrar mentores que combinam com seus objetivos e área de interesse.',
-      features: ['Busca por especialidade', 'Filtros avançados', 'Perfil detalhado']
+      icon: Calendar,
+      title: 'Encontra o Evento Perfeito',
+      description: 'Explora milhares de eventos por categoria, localização ou data. Filtra por música, workshops, tecnologia e muito mais!',
+      features: ['Busca inteligente', 'Filtros avançados', 'Recomendações personalizadas'],
     },
     {
       step: '02',
-      icon: Users,
-      title: 'Conheça e Conecte',
-      description: 'Veja o perfil completo do mentor, avaliações de outros aprendizes e agende uma sessão de descoberta.',
-      features: ['Perfil verificado', 'Avaliações reais', 'Sessão de descoberta']
+      icon: Ticket,
+      title: 'Escolhe Teu Bilhete',
+      description: 'Seleciona entre diferentes tipos de bilhetes - normal, VIP, estudante - com preços transparentes.',
+      features: ['Comparação de preços', 'Vários tipos de bilhete', 'Informação clara'],
     },
     {
       step: '03',
-      icon: Calendar,
-      title: 'Agende Sua Sessão',
-      description: 'Escolha o melhor horário na agenda do mentor e selecione o tipo de sessão que atende suas necessidades.',
-      features: ['Agenda integrada', 'Lembretes automáticos', 'Flexibilidade total']
+      icon: CreditCard,
+      title: 'Pagamento Seguro',
+      description: 'Paga de forma rápida e segura com M-Pesa, eMola, cartões. Transações 100% protegidas.',
+      features: ['Múltiplos métodos', 'Pagamento instantâneo', 'Segurança garantida'],
     },
     {
       step: '04',
-      icon: Video,
-      title: 'Participe da Mentoria',
-      description: 'Conecte-se via videochamada em nossa plataforma integrada ou presencialmente.',
-      features: ['Plataforma integrada', 'Ferramentas colaborativas', 'Suporte técnico']
+      icon: Smartphone,
+      title: 'Recebe Teu Bilhete',
+      description: 'Recebe o bilhete digital instantaneamente por email, com QR Code para acesso rápido.',
+      features: ['Entrega imediata', 'QR Code incluído', 'Acesso no telemóvel'],
     },
     {
       step: '05',
-      icon: Target,
-      title: 'Acompanhe Seu Progresso',
-      description: 'Receba feedback personalizado, defina metas e acompanhe sua evolução.',
-      features: ['Dashboard pessoal', 'Metas mensuráveis', 'Feedback contínuo']
+      icon: Users,
+      title: 'Partilha a Experiência',
+      description: 'Convida amigos, partilha nas redes sociais e junta-te à comunidade de apaixonados por eventos.',
+      features: ['Convites fáceis', 'Partilha social', 'Comunidade ativa'],
     },
     {
       step: '06',
-      icon: Star,
-      title: 'Avale e Evolua',
-      description: 'Compartilhe sua experiência, avalie a sessão e continue sua jornada de aprendizado.',
-      features: ['Sistema de rating', 'Comunidade ativa', 'Planos de continuidade']
+      icon: MapPin,
+      title: 'Desfruta do Evento',
+      description: 'Apresenta o QR Code na entrada e mergulha numa experiência memorável com milhares de participantes!',
+      features: ['Acesso rápido', 'Experiência única', 'Memórias para guardar'],
     }
   ];
-
-  const benefits = [
-    {
-      icon: Clock,
-      title: 'Flexível',
-      description: 'Agende nos seus horários disponíveis',
-      stat: '24/7'
-    },
-    {
-      icon: Award,
-      title: 'Qualidade',
-      description: 'Mentores verificados e avaliados',
-      stat: '4.9/5'
-    },
-    {
-      icon: Zap,
-      title: 'Rápido',
-      description: 'Primeira sessão em até 24h',
-      stat: '92%'
-    },
-    {
-      icon: CheckCircle,
-      title: 'Garantido',
-      description: 'Satisfação garantida',
-      stat: '100%'
-    }
-  ];
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.15
-      }
-    }
-  };
-
-const itemVariants: Variants = {
-  hidden: { 
-    y: 20, 
-    opacity: 0 
-  },
-  visible: { 
-    y: 0, 
-    opacity: 1,
-    transition: {
-      duration: 0.6,
-      ease: "easeOut"
-    }
-  }
-};
-
-const itemVariantsSimple: Variants = {
-  hidden: { y: 20, opacity: 0 },
-  visible: { 
-    y: 0, 
-    opacity: 1,
-    transition: { duration: 0.6 }
-  }
-};
 
   return (
-    <section id="comoFunciona" className="py-16 bg-gradient-to-b from-secondary/0 to-secondary/10 dark:bg-gray-900">
-      <div className="container mx-auto px-4 max-w-6xl">
+    <section className="py-16 bg-background">
+      <div className="container mx-auto px-4 max-w-7xl">
+        
         {/* Header */}
         <motion.div
-          ref={ref}
           initial={{ opacity: 0, y: 20 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
+          whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-12"
+          className="text-center mb-16"
         >
           
-          <h2 className="text-3xl text-primary md:text-4xl font-bold  dark:text-white mb-4">
-            Como funciona
+          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
+            Como funciona a{' '}
+            <span className="text-secondary">Univents</span>
           </h2>
           
-          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Um processo simples e direto para conectar você com mentores que fazem a diferença na sua carreira.
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+            Descobre, compra e vende bilhetes para os melhores eventos em Moçambique em apenas alguns cliques!
           </p>
         </motion.div>
 
         {/* Steps Grid */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate={inView ? "visible" : "hidden"}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16"
-        >
-          {steps.map((step) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-20">
+          {steps.map((step, index) => (
             <motion.div
               key={step.step}
-              variants={itemVariants}
-              className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:border-primary/30 dark:hover:border-primary/30 transition-colors duration-300 group"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+              className="group"
             >
+              {/* Card */}
+              <div className="relative rounded-xl p-6 bg-card border border-border shadow-sm hover:shadow-md transition-all duration-300 h-full hover:border-primary/20">
+                
+                {/* Step Number */}
+                {/* <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary text-primary-foreground font-semibold text-sm mb-4">
+                  {step.step}
+                </div> */}
 
-              {/* Icon */}
-              <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary/15 transition-colors duration-300">
-                <step.icon className="w-6 h-6 text-primary" />
+                {/* Icon */}
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/15 transition-colors duration-300">
+                  <step.icon className="w-6 h-6 text-secondary" />
+                </div>
+
+                {/* Content */}
+                <h3 className="text-xl font-semibold text-foreground mb-3">
+                  {step.title}
+                </h3>
+                
+                <p className="text-muted-foreground mb-4 leading-relaxed">
+                  {step.description}
+                </p>
+
+                {/* Features */}
+                <ul className="space-y-2">
+                  {step.features.map((feature, featureIndex) => (
+                    <li key={featureIndex} className="flex items-center text-sm text-muted-foreground">
+                      <CheckCircle className="w-4 h-4 text-secondary mr-2 flex-shrink-0" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
               </div>
-
-              {/* Content */}
-              <h3 className="text-xl font-semibold  dark:text-white mb-3">
-                {step.title}
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4 text-sm leading-relaxed">
-                {step.description}
-              </p>
-
-              {/* Features */}
-              <ul className="space-y-2">
-                {step.features.map((feature, index) => (
-                  <li key={index} className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                    <CheckCircle className="w-3 h-3 text-secondary mr-2 flex-shrink-0" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
             </motion.div>
           ))}
-        </motion.div>
-
-        
-
-        
+        </div>
       </div>
     </section>
   );
