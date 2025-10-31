@@ -302,10 +302,10 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                     <span className="text-foreground">{subtotal} MZN</span>
                   </div>
                   
-                  <div className="flex justify-between text-sm">
+                  {/* <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Taxa de serviço</span>
                     <span className="text-foreground">{serviceFee.toFixed(2)} MZN</span>
-                  </div>
+                  </div> */}
                 </div>
                 
                 <div className="border-t border-border pt-4">
@@ -367,9 +367,6 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                 <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                   <Shield className="w-4 h-4" />
                   Pagamento 100% seguro e encriptado
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Reembolso garantido em caso de cancelamento
                 </div>
               </div>
             </motion.div>
