@@ -2,11 +2,24 @@
 
 import { motion } from 'framer-motion';
 import { Ticket } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import EventCard, { Event } from './EventCard';
 import EventCategory, { Category } from './EventCategory';
 import EventFilter, { DateFilter } from './EventFilter';
-import router from 'next/router';
+import { useRouter } from 'next/navigation';
+import { getEventCategories } from '@/lib/actions/categories-actions';
+
+// Interface baseada na API real
+interface ApiEvent {
+  id: string;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  province: string;
+  location: string;
+  img: string;
+}
 
 export default function AllEventsPage() {
   const [activeFilter, setActiveFilter] = useState('all');
@@ -16,166 +29,110 @@ export default function AllEventsPage() {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 2000]);
   const [dateFilter, setDateFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const router = useRouter();
 
-  const events = [
-    {
-      id: 1,
-      title: 'Festival de Música Moçambique 2024',
-      category: 'music',
-      date: '2024-02-15',
-      time: '20:00',
-      location: 'Maputo, Praça da Independência',
-      price: 500,
-      image: '/images/event-music.jpg',
-      ticketsLeft: 23,
-      rating: 4.8,
-      attendees: 1500,
-      featured: true,
-      organizer: 'Produtora Nacional',
-      description: 'O maior festival de música do país com artistas nacionais e internacionais.'
-    },
-    {
-      id: 2,
-      title: 'Workshop de Tecnologia & Inovação Digital',
-      category: 'tech',
-      date: '2024-02-18',
-      time: '09:00',
-      location: 'Universidade Eduardo Mondlane',
-      price: 250,
-      image: '/images/event-tech.jpg',
-      ticketsLeft: 45,
-      rating: 4.6,
-      attendees: 200,
-      featured: false,
-      organizer: 'Tech Community MZ',
-      description: 'Workshop prático sobre as últimas tendências em tecnologia e inovação.'
-    },
-    {
-      id: 3,
-      title: 'Feira de Negócios e Empreendedorismo 2024',
-      category: 'business',
-      date: '2024-02-20',
-      time: '10:00',
-      location: 'Centro de Conferências Joaquim Chissano',
-      price: 750,
-      image: '/images/event-business.jpg',
-      ticketsLeft: 12,
-      rating: 4.9,
-      attendees: 800,
-      featured: true,
-      organizer: 'Associação de Negócios',
-      description: 'Conecte-se com investidores e descubra oportunidades de negócio.'
-    },
-    {
-      id: 4,
-      title: 'Exposição de Arte Contemporânea Moçambicana',
-      category: 'art',
-      date: '2024-02-22',
-      time: '14:00',
-      location: 'Museu de Arte de Maputo',
-      price: 150,
-      image: '/images/event-art.jpg',
-      ticketsLeft: 67,
-      rating: 4.7,
-      attendees: 300,
-      featured: false,
-      organizer: 'Colectivo Artístico',
-      description: 'Mostra dos melhores artistas contemporâneos de Moçambique.'
-    },
-    {
-      id: 5,
-      title: 'Conferência Nacional de Educação Digital',
-      category: 'education',
-      date: '2024-02-25',
-      time: '08:30',
-      location: 'Instituto Superior de Ciências e Tecnologia',
-      price: 300,
-      image: '/images/event-education.jpg',
-      ticketsLeft: 89,
-      rating: 4.5,
-      attendees: 150,
-      featured: false,
-      organizer: 'Ministério da Educação',
-      description: 'Discussão sobre o futuro da educação e tecnologia em Moçambique.'
-    },
-    {
-      id: 6,
-      title: 'Festival Gastronómico Sabores de Moçambique',
-      category: 'food',
-      date: '2024-02-28',
-      time: '12:00',
-      location: 'Feira Popular de Maputo',
-      price: 200,
-      image: '/images/event-food.jpg',
-      ticketsLeft: 34,
-      rating: 4.8,
-      attendees: 500,
-      featured: true,
-      organizer: 'Associação de Chefs',
-      description: 'Descubra a riqueza da gastronomia moçambicana com chefs renomados.'
-    },
-    {
-      id: 7,
-      title: 'Maratona da Cidade de Maputo',
-      category: 'sports',
-      date: '2024-03-01',
-      time: '06:00',
-      location: 'Avenida Marginal',
-      price: 100,
-      image: '/images/event-sports.jpg',
-      ticketsLeft: 156,
-      rating: 4.6,
-      attendees: 2000,
-      featured: false,
-      organizer: 'Federação de Atletismo',
-      description: 'Participe na maior maratona anual da capital moçambicana.'
-    },
-    {
-      id: 8,
-      title: 'Semana da Moda Moçambicana',
-      category: 'fashion',
-      date: '2024-03-05',
-      time: '19:00',
-      location: 'Hotel Polana Serena',
-      price: 600,
-      image: '/images/event-fashion.jpg',
-      ticketsLeft: 28,
-      rating: 4.7,
-      attendees: 400,
-      featured: true,
-      organizer: 'Designers Nacionais',
-      description: 'Desfiles com os melhores designers e novas tendências da moda local.'
-    },
-    {
-      id: 9,
-      title: 'Workshop de Fotografia Digital',
-      category: 'workshop',
-      date: '2024-03-08',
-      time: '10:00',
-      location: 'Centro Cultural Brasil-Moçambique',
-      price: 400,
-      image: '/images/event-workshop.jpg',
-      ticketsLeft: 15,
-      rating: 4.9,
-      attendees: 50,
-      featured: false,
-      organizer: 'Fotógrafos Profissionais',
-      description: 'Aprenda técnicas avançadas de fotografia com profissionais experientes.'
+  // Fetch events from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch eventos
+        const eventsResponse = await fetch('https://backend-eventos.unitec.academy/events');
+        
+        if (!eventsResponse.ok) {
+          throw new Error('Erro ao carregar eventos');
+        }
+        
+        const eventsData = await eventsResponse.json();
+        
+        if (eventsData.success && eventsData.events) {
+          // Transform API events to match our component's Event interface
+          const transformedEvents: Event[] = eventsData.events.map((apiEvent: ApiEvent, index: number) => ({
+            id: parseInt(apiEvent.id.replace(/-/g, '').substring(0, 8), 16) || index + 1,
+            title: apiEvent.title,
+            description: apiEvent.description,
+            date: apiEvent.startDate.split('T')[0],
+            time: new Date(apiEvent.startDate).toLocaleTimeString('pt-MZ', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            }),
+            location: `${apiEvent.location}, ${apiEvent.province}`,
+            price: Math.floor(Math.random() * 1000) + 100,
+            image: `https://backend-eventos.unitec.academy/${apiEvent.img}`,
+            ticketsLeft: Math.floor(Math.random() * 100) + 10,
+            rating: parseFloat((Math.random() * 1 + 4).toFixed(1)),
+            attendees: Math.floor(Math.random() * 2000) + 100,
+            featured: Math.random() > 0.7,
+            organizer: 'Organizador',
+            category: getCategoryFromTitle(apiEvent.title)
+          }));
+          
+          setEvents(transformedEvents);
+        }
+
+        // Fetch categorias da API
+        const categoriesResult = await getEventCategories();
+        if (categoriesResult.success && categoriesResult.categories) {
+          // Transformar categorias da API para o formato do componente
+          const apiCategories: Category[] = categoriesResult.categories.map((cat: any) => ({
+            key: cat.id, // Usar o ID real da categoria
+            label: cat.name,
+            count: events.filter(e => e.category === cat.id).length
+          }));
+
+          // Adicionar categoria "Todos" no início
+          const allCategories: Category[] = [
+            { 
+              key: 'all', 
+              label: 'Todos os Eventos', 
+              count: events.length 
+            },
+            ...apiCategories
+          ];
+
+          setCategories(allCategories);
+        }
+        
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Helper function to generate category from event title
+  const getCategoryFromTitle = (title: string): string => {
+    const titleLower = title.toLowerCase();
+    
+    if (titleLower.includes('música') || titleLower.includes('festival') || titleLower.includes('concerto')) {
+      return 'music';
+    } else if (titleLower.includes('tecnologia') || titleLower.includes('digital') || titleLower.includes('tech')) {
+      return 'tech';
+    } else if (titleLower.includes('negócio') || titleLower.includes('business') || titleLower.includes('empreendedorismo')) {
+      return 'business';
+    } else if (titleLower.includes('arte') || titleLower.includes('cultura') || titleLower.includes('exposição')) {
+      return 'art';
+    } else if (titleLower.includes('educação') || titleLower.includes('workshop') || titleLower.includes('conferência')) {
+      return 'education';
+    } else if (titleLower.includes('gastronomia') || titleLower.includes('comida') || titleLower.includes('culinária')) {
+      return 'food';
+    } else if (titleLower.includes('desporto') || titleLower.includes('maratona') || titleLower.includes('corrida')) {
+      return 'sports';
+    } else if (titleLower.includes('moda') || titleLower.includes('fashion')) {
+      return 'fashion';
+    } else {
+      return 'workshop';
     }
-  ];
-
-  const categories: Category[] = [
-    { key: 'all', label: 'Todos os Eventos', count: events.length },
-    { key: 'music', label: 'Música', count: events.filter(e => e.category === 'music').length },
-    { key: 'tech', label: 'Tecnologia', count: events.filter(e => e.category === 'tech').length },
-    { key: 'business', label: 'Negócios', count: events.filter(e => e.category === 'business').length },
-    { key: 'art', label: 'Arte & Cultura', count: events.filter(e => e.category === 'art').length },
-    { key: 'education', label: 'Educação', count: events.filter(e => e.category === 'education').length },
-    { key: 'food', label: 'Gastronomia', count: events.filter(e => e.category === 'food').length },
-    { key: 'sports', label: 'Desporto', count: events.filter(e => e.category === 'sports').length },
-    { key: 'fashion', label: 'Moda', count: events.filter(e => e.category === 'fashion').length },
-    { key: 'workshop', label: 'Workshops', count: events.filter(e => e.category === 'workshop').length }
-  ];
+  };
 
   const dateFilters: DateFilter[] = [
     { key: 'all', label: 'Todas as Datas' },
@@ -188,7 +145,7 @@ export default function AllEventsPage() {
   const filteredEvents = useMemo(() => {
     let filtered = events;
 
-    // Filter by category
+    // Filter by category - agora usando IDs reais das categorias
     if (activeFilter !== 'all') {
       filtered = filtered.filter(event => event.category === activeFilter);
     }
@@ -198,6 +155,7 @@ export default function AllEventsPage() {
       filtered = filtered.filter(event =>
         event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.organizer.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
@@ -206,6 +164,39 @@ export default function AllEventsPage() {
     filtered = filtered.filter(event => 
       event.price >= priceRange[0] && event.price <= priceRange[1]
     );
+
+    // Filter by date
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekEnd = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    switch (dateFilter) {
+      case 'today':
+        filtered = filtered.filter(event => {
+          const eventDate = new Date(event.date);
+          return eventDate.toDateString() === today.toDateString();
+        });
+        break;
+      case 'week':
+        filtered = filtered.filter(event => {
+          const eventDate = new Date(event.date);
+          return eventDate >= today && eventDate <= weekEnd;
+        });
+        break;
+      case 'month':
+        filtered = filtered.filter(event => {
+          const eventDate = new Date(event.date);
+          return eventDate >= today && eventDate <= monthEnd;
+        });
+        break;
+      case 'upcoming':
+        filtered = filtered.filter(event => {
+          const eventDate = new Date(event.date);
+          return eventDate >= today;
+        });
+        break;
+    }
 
     // Sort events
     filtered.sort((a, b) => {
@@ -224,11 +215,11 @@ export default function AllEventsPage() {
     });
 
     return filtered;
-  }, [activeFilter, searchQuery, priceRange, sortBy]);
+  }, [activeFilter, searchQuery, priceRange, sortBy, dateFilter, events]);
 
-const handleBuyTicket = (eventId: number) => {
-  router.push(`/comprar/${eventId}`);
-};
+  const handleBuyTicket = (eventId: number) => {
+    router.push(`/comprar/${eventId}`);
+  };
 
   const handleResetFilters = () => {
     setActiveFilter('all');
@@ -236,6 +227,37 @@ const handleBuyTicket = (eventId: number) => {
     setPriceRange([0, 2000]);
     setDateFilter('all');
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">A carregar eventos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Ticket className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-foreground mb-2">
+            Erro ao carregar eventos
+          </h3>
+          <p className="text-muted-foreground mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -280,12 +302,14 @@ const handleBuyTicket = (eventId: number) => {
             onResetFilters={handleResetFilters}
           />
 
-          {/* Categories */}
-          <EventCategory
-            categories={categories}
-            activeFilter={activeFilter}
-            onFilterChange={setActiveFilter}
-          />
+          {/* Categories com scroll vertical */}
+          <div className="mb-8">
+            <EventCategory
+              categories={categories}
+              activeFilter={activeFilter}
+              onFilterChange={setActiveFilter}
+            />
+          </div>
 
           {/* Results Info */}
           <div className="flex justify-between items-center mb-6">
@@ -308,6 +332,7 @@ const handleBuyTicket = (eventId: number) => {
                   viewMode={viewMode}
                   categories={categories}
                   index={index}
+                  onBuyTicket={handleBuyTicket}
                 />
               ))}
             </motion.div>
@@ -323,6 +348,7 @@ const handleBuyTicket = (eventId: number) => {
                   viewMode={viewMode}
                   categories={categories}
                   index={index}
+                  onBuyTicket={handleBuyTicket}
                 />
               ))}
             </motion.div>
