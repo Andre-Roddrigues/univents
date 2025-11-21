@@ -18,11 +18,15 @@ export const registerSchema = z
 
     telephone: z
       .string()
-      .min(9, "Contacto deve ter pelo menos 9 dígitos")
-      .max(15, "Contacto deve ter no máximo 15 caracteres")
-      .regex(/^[\+]?[0-9\s\-\(\)]+$/, "Formato de contacto inválido")
       .optional()
-      .or(z.literal("")),
+      .transform((val) => val ?? "")
+      .refine(
+        (val) =>
+          val === "" || (/^[\+]?[0-9\s\-\(\)]+$/.test(val) && val.length >= 9),
+        {
+          message: "Formato de contacto inválido ou muito curto",
+        }
+      ),
 
     password: z
       .string()
@@ -30,18 +34,22 @@ export const registerSchema = z
       .max(100, "Senha deve ter no máximo 100 caracteres")
       .regex(
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-        "Senha deve conter pelo menos: 1 letra minúscula, 1 maiúscula e 1 número"
+        "Senha deve conter: 1 minúscula, 1 maiúscula e 1 número"
       ),
 
-    passwordConfirm: z.string().min(1, "Confirmação de senha é obrigatória"),
+    passwordConfirm: z
+      .string()
+      .min(1, "Confirmação de senha é obrigatória"),
 
     acceptTerms: z.boolean().refine((val) => val === true, {
       message: "Você deve aceitar os termos e condições",
     }),
   })
+
+  // 🔥 Ajuste principal: path corrigido para passwordConfirm
   .refine((data) => data.password === data.passwordConfirm, {
     message: "As senhas não coincidem",
-    path: ["confirmPassword"],
+    path: ["passwordConfirm"],
   });
 
 export type RegisterSchema = z.infer<typeof registerSchema>;

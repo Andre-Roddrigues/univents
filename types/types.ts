@@ -1,13 +1,18 @@
-export interface Ebook {
-  id?: string;
-  title: string;
-  authors: string[];
-  coverImage: string;
-  categories: string[];
+export interface CartItem {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  ticketName: string;
+  ticketType: string;
   price: number;
-  rating: number;
-  description?: string;
-  pages?: number;
+  quantity: number;
+  availableQuantity: number;
+  benefits: Array<{
+    id: string;
+    name: string;
+    description: string;
+    icon?: string | null;
+  }>; // ou defina uma interface específica para livros
 }
 export interface searchParamsProps {
   searchParams: { [key: string]: string | string[] | undefined };
@@ -70,10 +75,6 @@ export interface Book {
   };
 }
 
-export interface CartItem {
-  book: Book;
-  quantity: number;
-}
 
 export interface ShippingOption {
   id: string;
@@ -82,15 +83,9 @@ export interface ShippingOption {
   label?: string;
 }
 export interface UserSession {
-  accessToken: string;
-  iss?: string;
-  aud?: string;
-  sub?: number;
   email?: string;
   telephone?: number;
-  statusAccount?: boolean;
   name?: string;
-  lastname?: string;
-  id?: number;
-  exp?: string;
+  lastName: string;
+  role: string;
 }

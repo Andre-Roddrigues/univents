@@ -1,14 +1,15 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Clock, Users, Ticket, Star, ArrowRight } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Ticket, Star, ArrowRight, User } from 'lucide-react';
 import Link from 'next/link';
 import React from 'react';
 
+// Interface atualizada com ID string da API
 export interface Event {
-  id: number;
+  id: string; // 🔥 MUDADO: agora é string para compatibilidade com a API
   title: string;
-  category: string;
+  description: string;
   date: string;
   time: string;
   location: string;
@@ -19,7 +20,10 @@ export interface Event {
   attendees: number;
   featured: boolean;
   organizer: string;
-  description: string;
+  category: string;
+  daysUntilEvent?: string;
+  eventType: string;
+  createdAt: string;
 }
 
 interface EventCardProps {
@@ -51,9 +55,33 @@ const EventCard: React.FC<EventCardProps> = ({
     }).format(price);
   };
 
-  // Componente do Botão de Compra com Link
+  // 🔥 FUNÇÃO PARA FORMATAR O TIPO DO EVENTO
+  const formatEventType = (type: string) => {
+    return type === 'online' ? 'Online' : 'Presencial';
+  };
+
+  // 🔥 FUNÇÃO PARA OBTER COR E ÍCONE DO TIPO DO EVENTO
+  const getEventTypeStyles = (type: string) => {
+    if (type === 'online') {
+      return {
+        bgColor: 'bg-[#000214]',
+        textColor: 'text-[#ffbf00]',
+        bgLight: 'bg-blue-500/30',
+        icon: ''
+      };
+    } else {
+      return {
+        bgColor: 'bg-[#000214]',
+        textColor: 'text-[#ffbf00]',
+        bgLight: 'bg-[#000214]',
+        icon: ''
+      };
+    }
+  };
+
+  // 🔥 COMPONENTE DO BOTÃO DE COMPRA CORRIGIDO - AMBOS USAM O MESMO LINK
   const BuyButton = () => (
-    <Link href={`/eventos/comprar/${event.id}`}>
+    <Link href={`/eventos/comprar/${event.id}`}> {/* 🔥 CORRIGIDO: usar /comprar/ consistentemente */}
       <button className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
         Comprar
         <ArrowRight className="w-4 h-4" />
@@ -61,15 +89,24 @@ const EventCard: React.FC<EventCardProps> = ({
     </Link>
   );
 
-  // Componente do Botão de Compra para List View
+  // 🔥 COMPONENTE DO BOTÃO DE COMPRA PARA LIST VIEW CORRIGIDO
   const BuyButtonList = () => (
-    <Link href={`/eventos/${event.id}`}>
+    <Link href={`/eventos/comprar/${event.id}`}> {/* 🔥 CORRIGIDO: usar /comprar/ consistentemente */}
       <button className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors w-full md:w-auto justify-center">
         Comprar Bilhete
         <ArrowRight className="w-4 h-4" />
       </button>
     </Link>
   );
+
+  // 🔥 COMPONENTE DO LINK PARA DETALHES DO EVENTO
+  const EventDetailsLink = ({ children }: { children: React.ReactNode }) => (
+    <Link href={`/eventos/comprar/${event.id}`}> {/* 🔥 CORRIGIDO: manter /eventos/ para detalhes */}
+      {children}
+    </Link>
+  );
+
+  const eventTypeStyles = getEventTypeStyles(event.eventType);
 
   if (viewMode === 'grid') {
     return (
@@ -81,37 +118,55 @@ const EventCard: React.FC<EventCardProps> = ({
       >
         <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 h-full flex flex-col">
           
-          {/* Event Image com Link */}
-          <Link href={`/eventos/${event.id}`} className="block relative h-48 bg-gradient-to-br from-primary/20 to-secondary/20 overflow-hidden">
-            {event.featured && (
-              <div className="absolute top-3 left-3 z-10">
-                <span className="px-3 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">
-                  Em Destaque
+          {/* Event Image com Link para detalhes */}
+          <EventDetailsLink>
+            <div className="block relative h-48 bg-gradient-to-br from-primary/20 to-secondary/20 overflow-hidden cursor-pointer">
+              {event.featured && (
+                <div className="absolute top-3 left-3 z-10">
+                  <span className="px-3 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">
+                    Em Destaque
+                  </span>
+                </div>
+              )}
+              
+              {event.ticketsLeft < 50 && (
+                <div className="absolute top-3 right-3 z-10">
+                  <span className="px-3 py-1 bg-red-500 text-white text-xs font-medium rounded-full">
+                    Últimos {event.ticketsLeft}
+                  </span>
+                </div>
+              )}
+              
+              {/* 🔥 BADGE DO TIPO DO EVENTO */}
+              <div className="absolute bottom-3 left-3 z-10">
+                <span className={`px-3 py-1 ${eventTypeStyles.bgLight} ${eventTypeStyles.textColor} text-xs font-medium rounded-full flex items-center gap-1`}>
+                  <span>{eventTypeStyles.icon}</span>
+                  {formatEventType(event.eventType)}
                 </span>
               </div>
-            )}
-            
-            {event.ticketsLeft < 50 && (
-              <div className="absolute top-3 right-3 z-10">
-                <span className="px-3 py-1 bg-red-500 text-white text-xs font-medium rounded-full">
-                  Últimos {event.ticketsLeft}
-                </span>
-              </div>
-            )}
-            
-            {/* Placeholder for image */}
-            <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
-              <Ticket className="w-12 h-12 text-primary/30" />
+              
+              {/* Imagem do evento */}
+              {event.image ? (
+                <img 
+                  src={event.image} 
+                  alt={event.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
+                  <Ticket className="w-12 h-12 text-secondary" />
+                </div>
+              )}
             </div>
-          </Link>
+          </EventDetailsLink>
 
           {/* Event Content */}
           <div className="p-5 flex-1 flex flex-col">
             
-            {/* Category */}
+            {/* Category e Rating */}
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">
-                {categories.find(cat => cat.key === event.category)?.label}
+                {categories.find(cat => cat.key === event.category)?.label || 'Sem Categoria'}
               </span>
               
               {/* Rating */}
@@ -121,12 +176,12 @@ const EventCard: React.FC<EventCardProps> = ({
               </div>
             </div>
 
-            {/* Title com Link */}
-            <Link href={`/eventos/${event.id}`}>
+            {/* Title com Link para detalhes */}
+            <EventDetailsLink>
               <h3 className="font-semibold text-foreground mb-2 line-clamp-2 group-hover:text-primary transition-colors cursor-pointer">
                 {event.title}
               </h3>
-            </Link>
+            </EventDetailsLink>
 
             {/* Organizer */}
             <p className="text-sm text-muted-foreground mb-3">
@@ -136,18 +191,19 @@ const EventCard: React.FC<EventCardProps> = ({
             {/* Event Details */}
             <div className="space-y-2 mb-4 flex-1">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Calendar className="w-4 h-4" />
+                <Calendar className="w-4 h-4 text-primary" />
                 <span>{formatDate(event.date)} • {event.time}</span>
               </div>
               
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="w-4 h-4" />
+                <MapPin className="w-4 h-4 text-primary" />
                 <span className="line-clamp-1">{event.location}</span>
               </div>
               
+              {/* 🔥 CAPACIDADE EM VEZ DE PARTICIPANTES */}
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Users className="w-4 h-4" />
-                <span>{event.attendees.toLocaleString()} participantes</span>
+                <Users className="w-4 h-4 text-primary" />
+                <span>Capacidade: {event.attendees.toLocaleString()} pessoas</span>
               </div>
             </div>
 
@@ -162,6 +218,9 @@ const EventCard: React.FC<EventCardProps> = ({
                 <span className="text-2xl font-bold text-foreground">
                   {formatPrice(event.price)}
                 </span>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Preço mais baixo
+                </p>
               </div>
               
               <BuyButton />
@@ -184,21 +243,39 @@ const EventCard: React.FC<EventCardProps> = ({
       <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
         <div className="flex flex-col md:flex-row">
           
-          {/* Event Image com Link */}
-          <Link href={`/eventos/${event.id}`} className="block relative md:w-64 h-48 md:h-auto bg-gradient-to-br from-primary/20 to-secondary/20 overflow-hidden">
-            {event.featured && (
-              <div className="absolute top-3 left-3 z-10">
-                <span className="px-3 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">
-                  Em Destaque
+          {/* Event Image com Link para detalhes */}
+          <EventDetailsLink>
+            <div className="block relative md:w-64 h-48 md:h-auto bg-gradient-to-br from-primary/20 to-secondary/20 overflow-hidden cursor-pointer">
+              {event.featured && (
+                <div className="absolute top-3 left-3 z-10">
+                  <span className="px-3 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">
+                    Em Destaque
+                  </span>
+                </div>
+              )}
+              
+              {/* 🔥 BADGE DO TIPO DO EVENTO */}
+              <div className="absolute bottom-3 left-3 z-10">
+                <span className={`px-3 py-1 ${eventTypeStyles.bgLight} ${eventTypeStyles.textColor} text-xs font-medium rounded-full flex items-center gap-1`}>
+                  <span>{eventTypeStyles.icon}</span>
+                  {formatEventType(event.eventType)}
                 </span>
               </div>
-            )}
-            
-            {/* Placeholder for image */}
-            <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
-              <Ticket className="w-12 h-12 text-primary/30" />
+              
+              {/* Imagem do evento */}
+              {event.image ? (
+                <img 
+                  src={event.image} 
+                  alt={event.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
+                  <Ticket className="w-12 h-12 text-primary/30" />
+                </div>
+              )}
             </div>
-          </Link>
+          </EventDetailsLink>
 
           {/* Event Content */}
           <div className="flex-1 p-6">
@@ -209,20 +286,27 @@ const EventCard: React.FC<EventCardProps> = ({
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">
-                      {categories.find(cat => cat.key === event.category)?.label}
+                      {categories.find(cat => cat.key === event.category)?.label || 'Sem Categoria'}
                     </span>
+                    
+                    {/* 🔥 TIPO DO EVENTO NO HEADER */}
+                    <span className={`text-xs font-medium ${eventTypeStyles.textColor} ${eventTypeStyles.bgLight} px-2 py-1 rounded flex items-center gap-1`}>
+                      <span>{eventTypeStyles.icon}</span>
+                      {formatEventType(event.eventType)}
+                    </span>
+                    
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
                       <span>{event.rating}</span>
                     </div>
                   </div>
                   
-                  {/* Title com Link */}
-                  <Link href={`/eventos/${event.id}`}>
+                  {/* Title com Link para detalhes */}
+                  <EventDetailsLink>
                     <h3 className="text-xl font-semibold text-foreground mb-1 group-hover:text-primary transition-colors cursor-pointer">
                       {event.title}
                     </h3>
-                  </Link>
+                  </EventDetailsLink>
                   
                   <p className="text-sm text-muted-foreground mb-2">
                     Por {event.organizer}
@@ -233,6 +317,9 @@ const EventCard: React.FC<EventCardProps> = ({
                   <span className="text-2xl font-bold text-foreground">
                     {formatPrice(event.price)}
                   </span>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Preço mais baixo
+                  </p>
                   {event.ticketsLeft < 50 && (
                     <div className="text-xs text-red-500 font-medium mt-1">
                       Últimos {event.ticketsLeft} bilhetes
@@ -261,7 +348,7 @@ const EventCard: React.FC<EventCardProps> = ({
                   
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
-                    <span>{event.attendees.toLocaleString()} participantes</span>
+                    <span>Capacidade: {event.attendees.toLocaleString()}</span>
                   </div>
                 </div>
                 

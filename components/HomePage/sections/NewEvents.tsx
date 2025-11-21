@@ -11,107 +11,167 @@ import {
   Star
 } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+// Interface baseada na API real
+interface ApiEvent {
+  id: string;
+  title: string;
+  description: string;
+  capacity: string;
+  startDate: string;
+  endDate: string;
+  province: string;
+  location: string;
+  img: string;
+  categoryId: string;
+  category: {
+    id: string;
+    name: string;
+  } | null;
+  tickets: Array<{
+    id: string;
+    name: string;
+    type: string;
+    availableQuantity: number;
+    price: number;
+    lastDayPayment: string;
+    benefits: Array<{
+      id: string;
+      name: string;
+      description: string;
+      icon: string | null;
+    }>;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Event {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  location: string;
+  price: number;
+  image: string;
+  ticketsLeft: number;
+  rating: number;
+  attendees: number;
+  featured: boolean;
+  organizer: string;
+  category: string;
+  categoryName: string;
+  eventType: string;
+}
 
 export default function RecentEvents() {
   const [activeFilter, setActiveFilter] = useState('all');
+  const [events, setEvents] = useState<Event[]>([]);
+  const [categories, setCategories] = useState<Array<{ key: string; label: string; count: number }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const events = [
-    {
-      id: 1,
-      title: 'Festival de Música Moçambique',
-      category: 'music',
-      date: '2024-02-15',
-      time: '20:00',
-      location: 'Maputo, Praça da Independência',
-      price: 500,
-      image: '/images/event-music.jpg',
-      ticketsLeft: 23,
-      rating: 4.8,
-      attendees: 1500,
-      featured: true
-    },
-    {
-      id: 2,
-      title: 'Workshop de Tecnologia & Inovação',
-      category: 'tech',
-      date: '2024-02-18',
-      time: '09:00',
-      location: 'Universidade Eduardo Mondlane',
-      price: 250,
-      image: '/images/event-tech.jpg',
-      ticketsLeft: 45,
-      rating: 4.6,
-      attendees: 200,
-      featured: false
-    },
-    {
-      id: 3,
-      title: 'Feira de Negócios 2024',
-      category: 'business',
-      date: '2024-02-20',
-      time: '10:00',
-      location: 'Centro de Conferências Joaquim Chissano',
-      price: 750,
-      image: '/images/event-business.jpg',
-      ticketsLeft: 12,
-      rating: 4.9,
-      attendees: 800,
-      featured: true
-    },
-    {
-      id: 4,
-      title: 'Exposição de Arte Contemporânea',
-      category: 'art',
-      date: '2024-02-22',
-      time: '14:00',
-      location: 'Museu de Arte de Maputo',
-      price: 150,
-      image: '/images/event-art.jpg',
-      ticketsLeft: 67,
-      rating: 4.7,
-      attendees: 300,
-      featured: false
-    },
-    {
-      id: 5,
-      title: 'Conferência de Educação Digital',
-      category: 'education',
-      date: '2024-02-25',
-      time: '08:30',
-      location: 'Instituto Superior de Ciências e Tecnologia',
-      price: 300,
-      image: '/images/event-education.jpg',
-      ticketsLeft: 89,
-      rating: 4.5,
-      attendees: 150,
-      featured: false
-    },
-    {
-      id: 6,
-      title: 'Festival Gastronómico',
-      category: 'food',
-      date: '2024-02-28',
-      time: '12:00',
-      location: 'Feira Popular de Maputo',
-      price: 200,
-      image: '/images/event-food.jpg',
-      ticketsLeft: 34,
-      rating: 4.8,
-      attendees: 500,
-      featured: true
-    }
-  ];
+  // Fetch events from API
+  useEffect(() => {
+    const fetchRecentEvents = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch eventos
+        const eventsResponse = await fetch('https://backend-eventos.unitec.academy/events');
+        
+        if (!eventsResponse.ok) {
+          throw new Error('Erro ao carregar eventos');
+        }
+        
+        const eventsData = await eventsResponse.json();
+        
+        if (eventsData.success && eventsData.events) {
+          // Transform API events to match our component's Event interface
+          const transformedEvents: Event[] = eventsData.events
+            .sort((a: ApiEvent, b: ApiEvent) => 
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            )
+            .slice(0, 6) // 🔥 PEGAR APENAS OS ÚLTIMOS 6 EVENTOS
+            .map((apiEvent: ApiEvent, index: number) => {
+              const categoryId = apiEvent.category?.id || apiEvent.categoryId || 'uncategorized';
+              const categoryName = apiEvent.category?.name || 'Sem Categoria';
+              
+              // 🔥 ENCONTRAR O PREÇO MAIS BAIXO E O TIPO DO TICKET
+              const minPriceTicket = apiEvent.tickets && apiEvent.tickets.length > 0 
+                ? apiEvent.tickets.reduce((min, ticket) => ticket.price < min.price ? ticket : min)
+                : null;
 
-  const categories = [
-    { key: 'all', label: 'Todos os Eventos' },
-    { key: 'music', label: 'Música' },
-    { key: 'tech', label: 'Tecnologia' },
-    { key: 'business', label: 'Negócios' },
-    { key: 'art', label: 'Arte & Cultura' },
-    { key: 'education', label: 'Educação' },
-    { key: 'food', label: 'Gastronomia' }
-  ];
+              const minPrice = minPriceTicket ? minPriceTicket.price : Math.floor(Math.random() * 1000) + 100;
+              
+              // 🔥 DETERMINAR O TIPO DO EVENTO (presencial/online)
+              const eventType = minPriceTicket ? minPriceTicket.type : 'presencial';
+
+              const ticketsLeft = apiEvent.tickets 
+                ? apiEvent.tickets.reduce((total, ticket) => total + ticket.availableQuantity, 0)
+                : Math.floor(Math.random() * 100) + 10;
+
+              return {
+                id: apiEvent.id,
+                title: apiEvent.title,
+                description: apiEvent.description,
+                date: apiEvent.startDate.split('T')[0],
+                time: new Date(apiEvent.startDate).toLocaleTimeString('pt-MZ', { 
+                  hour: '2-digit', 
+                  minute: '2-digit' 
+                }),
+                location: `${apiEvent.location}, ${apiEvent.province}`,
+                price: minPrice,
+                image: apiEvent.img,
+                ticketsLeft: ticketsLeft,
+                rating: parseFloat((Math.random() * 1 + 4).toFixed(1)),
+                attendees: parseInt(apiEvent.capacity) || Math.floor(Math.random() * 2000) + 100,
+                featured: Math.random() > 0.7,
+                organizer: 'Organizador',
+                category: categoryId,
+                categoryName: categoryName,
+                eventType: eventType
+              };
+            });
+
+          setEvents(transformedEvents);
+
+          // 🔥 CRIAR CATEGORIAS ÚNICAS DOS EVENTOS CARREGADOS
+          const uniqueCategories = new Map<string, { key: string; label: string; count: number }>();
+          
+          // Adicionar categoria "Todos os Eventos"
+          uniqueCategories.set('all', { 
+            key: 'all', 
+            label: 'Todos os Eventos', 
+            count: transformedEvents.length 
+          });
+
+          // Adicionar categorias dos eventos
+          transformedEvents.forEach(event => {
+            if (!uniqueCategories.has(event.category)) {
+              uniqueCategories.set(event.category, {
+                key: event.category,
+                label: event.categoryName,
+                count: transformedEvents.filter(e => e.category === event.category).length
+              });
+            }
+          });
+
+          const categoriesArray = Array.from(uniqueCategories.values());
+          setCategories(categoriesArray);
+        }
+        
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecentEvents();
+  }, []);
 
   const filteredEvents = activeFilter === 'all' 
     ? events 
@@ -133,6 +193,33 @@ export default function RecentEvents() {
     }).format(price);
   };
 
+  if (loading) {
+    return (
+      <section className="py-16 bg-background">
+        <div className="container mx-auto px-4 max-w-7xl">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">A carregar eventos recentes...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="py-16 bg-background">
+        <div className="container mx-auto px-4 max-w-7xl text-center">
+          <Ticket className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-foreground mb-2">
+            Erro ao carregar eventos
+          </h3>
+          <p className="text-muted-foreground mb-6">{error}</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="py-16 bg-background">
       <div className="container mx-auto px-4 max-w-7xl">
@@ -144,41 +231,38 @@ export default function RecentEvents() {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          {/* <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
-            <Calendar className="w-4 h-4" />
-            Eventos em Destaque
-          </div> */}
-          
           <h2 className="text-4xl md:text-5xl font-bold text-primary mb-6">
             Eventos <span className="text-secondary">Recentes</span>
           </h2>
           
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            Descobre os eventos recentes e garante já o teu lugar nas próximas experiências memoráveis
+            Descobre os eventos mais recentes e garante já o teu lugar nas próximas experiências memoráveis
           </p>
         </motion.div>
 
-        {/* Filters */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="flex flex-wrap justify-center gap-3 mb-12"
-        >
-          {categories.map((category) => (
-            <button
-              key={category.key}
-              onClick={() => setActiveFilter(category.key)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-                activeFilter === category.key
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              {category.label}
-            </button>
-          ))}
-        </motion.div>
+        {/* Filters - apenas se houver categorias */}
+        {categories.length > 1 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="flex flex-wrap justify-center gap-3 mb-12"
+          >
+            {categories.map((category) => (
+              <button
+                key={category.key}
+                onClick={() => setActiveFilter(category.key)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                  activeFilter === category.key
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                {category.label} {category.key !== 'all' && `(${category.count})`}
+              </button>
+            ))}
+          </motion.div>
+        )}
 
         {/* Events Grid */}
         <motion.div
@@ -199,26 +283,46 @@ export default function RecentEvents() {
                 
                 {/* Event Image */}
                 <div className="relative h-48 bg-gradient-to-br from-primary/20 to-secondary/20 overflow-hidden">
-                  {/* {event.featured && (
+                  {event.featured && (
                     <div className="absolute top-3 left-3 z-10">
                       <span className="px-3 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">
                         Em Destaque
                       </span>
                     </div>
-                  )} */}
+                  )}
                   
-                  {/* {event.ticketsLeft < 50 && (
+                  {event.ticketsLeft < 50 && (
                     <div className="absolute top-3 right-3 z-10">
                       <span className="px-3 py-1 bg-red-500 text-white text-xs font-medium rounded-full">
                         Últimos {event.ticketsLeft}
                       </span>
                     </div>
                   )}
-                   */}
-                  {/* Placeholder for image */}
-                  <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
-                    <Ticket className="w-12 h-12 text-primary/30" />
+                  
+                  {/* 🔥 BADGE DO TIPO DO EVENTO */}
+                  <div className="absolute bottom-3 left-3 z-10">
+                    <span className={`px-3 py-1 text-xs font-medium rounded-full flex items-center gap-1 ${
+                      event.eventType === 'online' 
+                        ? 'bg-blue-500/10 text-blue-500' 
+                        : 'bg-green-500/10 text-green-500'
+                    }`}>
+                      <span>{event.eventType === 'online' ? '🌐' : '📍'}</span>
+                      {event.eventType === 'online' ? 'Online' : 'Presencial'}
+                    </span>
                   </div>
+                  
+                  {/* Imagem do evento ou placeholder */}
+                  {event.image ? (
+                    <img 
+                      src={event.image} 
+                      alt={event.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
+                      <Ticket className="w-12 h-12 text-primary/30" />
+                    </div>
+                  )}
                 </div>
 
                 {/* Event Content */}
@@ -227,7 +331,7 @@ export default function RecentEvents() {
                   {/* Category */}
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs font-medium text-primary bg-secondary/50 px-2 py-1 rounded">
-                      {categories.find(cat => cat.key === event.category)?.label}
+                      {event.categoryName}
                     </span>
                     
                     {/* Rating */}
@@ -256,7 +360,7 @@ export default function RecentEvents() {
                     
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Users className="w-4 h-4" />
-                      <span>{event.attendees.toLocaleString()} participantes</span>
+                      <span>Capacidade: {event.attendees.toLocaleString()}</span>
                     </div>
                   </div>
 
@@ -266,12 +370,15 @@ export default function RecentEvents() {
                       <span className="text-2xl font-bold text-foreground">
                         {formatPrice(event.price)}
                       </span>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Preço mais baixo
+                      </p>
                     </div>
                     <Link href={`/eventos/comprar/${event.id}`}>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-secondary text-primary rounded-lg text-sm font-medium hover:bg-secondary/90 transition-colors">
-                      Comprar
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
+                      <button className="flex items-center gap-2 px-4 py-2 bg-secondary text-primary rounded-lg text-sm font-medium hover:bg-secondary/90 transition-colors">
+                        Comprar
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
                     </Link>
                   </div>
                 </div>
@@ -287,11 +394,11 @@ export default function RecentEvents() {
           transition={{ duration: 0.6, delay: 0.3 }}
           className="text-center"
         >
-            <Link href="/eventos">
-          <button className="inline-flex items-center gap-2 px-8 py-4 border border-primary text-primary rounded-lg font-semibold hover:bg-primary hover:text-primary-foreground transition-all duration-300">
-            Ver Todos os Eventos
-            <ArrowRight className="w-5 h-5" />
-          </button>
+          <Link href="/eventos">
+            <button className="inline-flex items-center gap-2 px-8 py-4 border border-primary text-primary rounded-lg font-semibold hover:bg-primary hover:text-primary-foreground transition-all duration-300">
+              Ver Todos os Eventos
+              <ArrowRight className="w-5 h-5" />
+            </button>
           </Link>
         </motion.div>
       </div>

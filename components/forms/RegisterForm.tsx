@@ -1,20 +1,20 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Mail, Lock, User, Eye, EyeOff, Phone } from "lucide-react";
-import { createAccount } from "@/lib/actions/auth-actions";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+
+
 import { InputField } from "../ui/InputField";
 import { Separator } from "../ui/separator";
 import { SubmitButton } from "../SubmitButton";
-import {
-  RegisterSchema,
-  registerSchema,
-} from "@/lib/validations/RegisterSchema";
+
 import { toast } from "sonner";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+
+import { registerUser } from "@/lib/actions/register-actions";
+import { registerSchema, RegisterSchema } from "@/lib/validations/RegisterSchema";
 
 export default function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -33,22 +33,37 @@ export default function RegisterForm() {
   const password = watch("password");
   const shouldShowConfirmPassword = password && password.length > 6;
 
+  // -------------------------------------------------------
+  // 🔥 HANDLE REGISTER - AGORA CHAMA registerUser
+  // -------------------------------------------------------
   const handleRegister = async (data: RegisterSchema) => {
     try {
-      const response = await createAccount(data);
+      const payload = {
+        name: data.name,
+        lastname: data.lastName,
+        username: data.email.split("@")[0],
+        email: data.email,
+        password: data.password,
+        phone: data.telephone,
+        provincia: "Maputo",
+        bairro: "Centro",
+      };
+
+      const response = await registerUser(payload);
+
       if (!response?.success) {
-        toast.error("Erro!!!", {
+        toast.error("Erro ao registrar", {
           description: response?.message,
         });
-        console.log("Erro", response?.message);
-        console.error(response?.errors);
-        console.error(response?.errorMessage);
         return;
       }
-      toast.success(response?.message);
-      router.push(`/verify-otp?email=${encodeURIComponent(data.email)}`);
+
+      toast.success("Conta criada com sucesso!");
+
+      router.push(`/login`);
     } catch (error) {
-      console.error("Erro inesperado ao tentar fazer cadastro.", error);
+      console.error("Erro inesperado:", error);
+      toast.error("Erro inesperado. Tente novamente.");
     }
   };
 
@@ -66,129 +81,110 @@ export default function RegisterForm() {
           onSubmit={handleSubmit(handleRegister)}
           className="space-y-3 sm:space-y-4"
         >
+          {/* Nome + Apelido */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <InputField
-              icon={<User size={18} className="sm:w-5 sm:h-5" />}
+              icon={<User size={18} />}
               label="Nome:"
               placeholder="Seu nome"
               type="text"
               {...register("name")}
               errorMessage={errors.name?.message}
-              className="text-sm sm:text-base"
             />
 
             <InputField
-              icon={<User size={18} className="sm:w-5 sm:h-5" />}
+              icon={<User size={18} />}
               label="Apelido:"
               placeholder="Seu apelido"
               type="text"
               {...register("lastName")}
               errorMessage={errors.lastName?.message}
-              className="text-sm sm:text-base"
             />
           </div>
 
+          {/* Email + Telefone */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <InputField
-              icon={<Mail size={18} className="sm:w-5 sm:h-5" />}
+              icon={<Mail size={18} />}
               label="Email:"
-              placeholder="william@email.com"
+              placeholder="email@email.com"
               type="email"
               {...register("email")}
               errorMessage={errors.email?.message}
-              className="text-sm sm:text-base"
             />
 
             <InputField
-              icon={<Phone size={18} className="sm:w-5 sm:h-5" />}
+              icon={<Phone size={18} />}
               label="Contacto:"
               placeholder="+258 XX XXX XXXX"
               type="tel"
               {...register("telephone")}
               errorMessage={errors.telephone?.message}
-              className="text-sm sm:text-base"
             />
           </div>
 
+          {/* Senha */}
           <InputField
-            icon={<Lock size={18} className="sm:w-5 sm:h-5" />}
+            icon={<Lock size={18} />}
             rightIcon={
-              showPassword ? (
-                <EyeOff size={18} className="sm:w-5 sm:h-5" />
-              ) : (
-                <Eye size={18} className="sm:w-5 sm:h-5" />
-              )
+              showPassword ? <EyeOff size={18} /> : <Eye size={18} />
             }
             onRightIconClick={() => setShowPassword(!showPassword)}
             label="Senha:"
-            placeholder="Crie uma senha segura"
+            placeholder="Crie uma senha"
             type={showPassword ? "text" : "password"}
             {...register("password")}
             errorMessage={errors.password?.message}
-            className="text-sm sm:text-base"
           />
 
+          {/* Confirmar Senha */}
           {shouldShowConfirmPassword && (
-            <div className="animate-in slide-in-from-top-2 duration-300">
-              <InputField
-                icon={<Lock size={18} className="sm:w-5 sm:h-5" />}
-                rightIcon={
-                  showConfirmPassword ? (
-                    <EyeOff size={18} className="sm:w-5 sm:h-5" />
-                  ) : (
-                    <Eye size={18} className="sm:w-5 sm:h-5" />
-                  )
-                }
-                onRightIconClick={() =>
-                  setShowConfirmPassword(!showConfirmPassword)
-                }
-                label="Confirmar senha:"
-                placeholder="Confirme sua senha"
-                type={showConfirmPassword ? "text" : "password"}
-                {...register("passwordConfirm")}
-                errorMessage={errors.passwordConfirm?.message}
-                className="text-sm sm:text-base"
-              />
-            </div>
+            <InputField
+              icon={<Lock size={18} />}
+              rightIcon={
+                showConfirmPassword ? (
+                  <EyeOff size={18} />
+                ) : (
+                  <Eye size={18} />
+                )
+              }
+              onRightIconClick={() =>
+                setShowConfirmPassword(!showConfirmPassword)
+              }
+              label="Confirmar senha:"
+              placeholder="Confirme sua senha"
+              type={showConfirmPassword ? "text" : "password"}
+              {...register("passwordConfirm")}
+              errorMessage={errors.passwordConfirm?.message}
+            />
           )}
 
-          <div className="flex items-start  space-x-2 pt-2">
+          {/* Termos */}
+          <div className="flex items-start space-x-2 pt-2">
             <input
               type="checkbox"
               {...register("acceptTerms")}
-              className="mt-1 h-4 w-4 border-gray-300 rounded flex-shrink-0"
+              className="mt-1 h-4 w-4"
             />
-            <label
-              htmlFor="terms"
-              className="text-xs sm:text-sm text-gray-600 leading-relaxed"
-            >
+            <label className="text-xs sm:text-sm text-gray-600 leading-relaxed">
               Eu aceito os{" "}
-              <button
-                type="button"
-                className=" hover:text-foreground font-medium transition-colors underline"
-              >
-                Termos de Uso
-              </button>{" "}
+              <button className="underline font-medium">Termos de Uso</button>{" "}
               e a{" "}
-              <button
-                type="button"
-                className=" hover:text-blue-800 font-medium transition-colors underline"
-              >
+              <button className="underline font-medium">
                 Política de Privacidade
               </button>
             </label>
           </div>
+
           {errors.acceptTerms && (
-            <p className="text-red-500 text-xs sm:text-sm">
-              {errors.acceptTerms.message}
-            </p>
+            <p className="text-red-500 text-xs">{errors.acceptTerms.message}</p>
           )}
 
           <SubmitButton
             isLoading={isSubmitting}
             defaultText="Criar conta"
-            loadingText="Criando conta..."
-            className="w-full py-2.5 sm:py-3 text-sm sm:text-base "
+            loadingText="Criando..."
+            className="w-full py-3"
           />
 
           <Separator />
@@ -197,9 +193,7 @@ export default function RegisterForm() {
         <div className="mt-4 text-center">
           <p className="text-gray-600 text-xs sm:text-sm">
             Já tem uma conta?{" "}
-            <button className=" underline underline-offset-4 font-semibold transition-colors">
-              Entrar
-            </button>
+            <button className="underline font-semibold">Entrar</button>
           </p>
         </div>
       </div>

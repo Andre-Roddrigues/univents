@@ -14,6 +14,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginForm() {
+  const router = useRouter();
+  const redirectUrl =
+    new URL(window.location.href).searchParams.get("redirect") || "/eventos";
+
   const {
     register,
     handleSubmit,
@@ -21,32 +25,45 @@ export default function LoginForm() {
   } = useForm<LoginSchema>({
     resolver: zodResolver(loginSchema),
   });
-  const redirectUrl =
-    new URL(window.location.href).searchParams.get("redirect") || "/books";
-  const router = useRouter();
 
   const handleLogin = async (data: LoginSchema) => {
     try {
-      const response = await login(data.email, data.password);
-      if (!response?.sucess) {
-        toast.error("Erro!!!", {
+      // Backend espera 'identifier' em vez de 'email'
+      const response = await login(data.identifier, data.password);
+
+      if (!response?.success) {
+        toast.error("Erro ao fazer login", {
           description: response?.message,
         });
         console.log("Erro", response?.message);
-        console.error(response?.errorMessage);
         return;
       }
-      toast.success(response?.message);
-      router.push(redirectUrl);
+
+      // Pegar dados do usuário
+      const user = response.data;
+      const name = user.name;
+      const role = user.lastname || user.role || ""; // pega role ou sobrenome se quiser
+
+      // Toast personalizado
+      toast.success(`Bem-vindo ${name}`, { description: `Role: ${user.role}` });
+
+      // Redirecionamento
+      if (user.role === "admin") {
+        router.push("/eventos/dashboard"); // apenas admin
+      } else {
+        router.push(redirectUrl); // outros roles
+      }
     } catch (error) {
       console.error("Erro inesperado ao tentar fazer login.", error);
+      toast.error("Erro inesperado ao tentar fazer login.");
     }
   };
+
   return (
     <div className="bg-white/70 backdrop-blur-xl max-w-md w-full h-full shadow-2xl border border-white/20 py-4 overflow-hidden">
       <div className="p-8">
         <div className="text-center mb-4">
-          <h2 className="text-2xl font-bold ">Bem-vindo de volta!</h2>
+          <h2 className="text-2xl font-bold">Bem-vindo de volta!</h2>
           <p className="text-muted-foreground text-sm">
             Retome seu aprendizado e alcance novos horizontes
           </p>
@@ -55,22 +72,20 @@ export default function LoginForm() {
         <form onSubmit={handleSubmit(handleLogin)} className="space-y-4">
           <InputField
             icon={<Mail size={20} />}
-            label="Email:"
-            placeholder="Insira o seu email"
+            label="Email ou usuário:"
+            placeholder="Insira seu email ou usuário"
             type="text"
-            {...register("email")}
-            errorMessage={errors.email?.message}
-            className=""
+            {...register("identifier")}
+            errorMessage={errors.identifier?.message}
           />
 
           <InputField
             icon={<Lock size={20} />}
             label="Senha:"
-            placeholder="Insira a sua senha"
-            type="text"
+            placeholder="Insira sua senha"
+            type="password"
             {...register("password")}
             errorMessage={errors.password?.message}
-            className=""
           />
 
           <Link
@@ -82,7 +97,9 @@ export default function LoginForm() {
 
           <SubmitButton
             isLoading={isSubmitting}
-            className="w-full bg-gradient-to-r from-primary to-secondary   py-5 shadow-lg transition-all hover:bg-gradient-to-br hover:shadow-xl"
+            defaultText="Entrar"
+            loadingText="Entrando..."
+            className="w-full bg-primary py-5 shadow-lg transition-all hover:bg-gradient-to-br hover:shadow-xl"
           />
 
           <Separator />

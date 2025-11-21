@@ -3,36 +3,79 @@
 import { motion } from 'framer-motion';
 import { Ticket } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
-import EventCard, { Event } from './EventCard';
+import EventCard from './EventCard';
 import EventCategory, { Category } from './EventCategory';
 import EventFilter, { DateFilter } from './EventFilter';
 import { useRouter } from 'next/navigation';
 import { getEventCategories } from '@/lib/actions/categories-actions';
 
-// Interface baseada na API real
+// Interface baseada na API real - ATUALIZADA
 interface ApiEvent {
   id: string;
   title: string;
   description: string;
+  capacity: string;
   startDate: string;
   endDate: string;
   province: string;
   location: string;
   img: string;
+  categoryId: string;
+  category: {
+    id: string;
+    name: string;
+  } | null;
+  tickets: Array<{
+    id: string;
+    name: string;
+    type: string;
+    availableQuantity: number;
+    price: number;
+    lastDayPayment: string;
+    benefits: Array<{
+      id: string;
+      name: string;
+      description: string;
+      icon: string | null;
+    }>;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Interface Event atualizada para usar id como string
+interface Event {
+  id: string; // ✅ MUDADO PARA STRING
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  location: string;
+  price: number;
+  image: string;
+  ticketsLeft: number;
+  rating: number;
+  attendees: number;
+  featured: boolean;
+  organizer: string;
+  category: string;
+  createdAt: string;
+  eventType: string;
 }
 
 export default function AllEventsPage() {
   const [activeFilter, setActiveFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('date');
+  const [sortBy, setSortBy] = useState('recent-desc'); // 🔥 Padrão: mais recentes primeiro
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 2000]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
   const [dateFilter, setDateFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [visibleEventsCount, setVisibleEventsCount] = useState(12); // 🔥 Estado para controlar quantos eventos mostrar
   
   const router = useRouter();
 
@@ -53,50 +96,87 @@ export default function AllEventsPage() {
         
         if (eventsData.success && eventsData.events) {
           // Transform API events to match our component's Event interface
-          const transformedEvents: Event[] = eventsData.events.map((apiEvent: ApiEvent, index: number) => ({
-            id: parseInt(apiEvent.id.replace(/-/g, '').substring(0, 8), 16) || index + 1,
-            title: apiEvent.title,
-            description: apiEvent.description,
-            date: apiEvent.startDate.split('T')[0],
-            time: new Date(apiEvent.startDate).toLocaleTimeString('pt-MZ', { 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            }),
-            location: `${apiEvent.location}, ${apiEvent.province}`,
-            price: Math.floor(Math.random() * 1000) + 100,
-            image: `https://backend-eventos.unitec.academy/${apiEvent.img}`,
-            ticketsLeft: Math.floor(Math.random() * 100) + 10,
-            rating: parseFloat((Math.random() * 1 + 4).toFixed(1)),
-            attendees: Math.floor(Math.random() * 2000) + 100,
-            featured: Math.random() > 0.7,
-            organizer: 'Organizador',
-            category: getCategoryFromTitle(apiEvent.title)
-          }));
+          const transformedEvents: Event[] = eventsData.events.map((apiEvent: ApiEvent, index: number) => {
+            const categoryId = apiEvent.category?.id || apiEvent.categoryId || 'uncategorized';
+            
+            // 🔥 ENCONTRAR O PREÇO MAIS BAIXO E O TIPO DO TICKET
+            const minPriceTicket = apiEvent.tickets && apiEvent.tickets.length > 0 
+              ? apiEvent.tickets.reduce((min, ticket) => ticket.price < min.price ? ticket : min)
+              : null;
+
+            const minPrice = minPriceTicket ? minPriceTicket.price : Math.floor(Math.random() * 1000) + 100;
+            
+            // 🔥 DETERMINAR O TIPO DO EVENTO (presencial/online)
+            const eventType = minPriceTicket ? minPriceTicket.type : 'presencial';
+
+            const ticketsLeft = apiEvent.tickets 
+              ? apiEvent.tickets.reduce((total, ticket) => total + ticket.availableQuantity, 0)
+              : Math.floor(Math.random() * 100) + 10;
+
+            return {
+              id: apiEvent.id, // ✅ CORRIGIDO: MANTER COMO STRING ORIGINAL
+              title: apiEvent.title,
+              description: apiEvent.description,
+              date: apiEvent.startDate.split('T')[0],
+              time: new Date(apiEvent.startDate).toLocaleTimeString('pt-MZ', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              }),
+              location: `${apiEvent.location}, ${apiEvent.province}`,
+              price: minPrice,
+              image: apiEvent.img,
+              ticketsLeft: ticketsLeft,
+              rating: parseFloat((Math.random() * 1 + 4).toFixed(1)),
+              attendees: parseInt(apiEvent.capacity) || Math.floor(Math.random() * 2000) + 100, // 🔥 USAR CAPACIDADE EM VEZ DE PARTICIPANTES
+              featured: Math.random() > 0.7,
+              organizer: 'Organizador',
+              category: categoryId,
+              createdAt: apiEvent.createdAt,
+              eventType: eventType // 🔥 ADICIONAR TIPO DO EVENTO
+            };
+          });
+
+          // 🔥 ORDENAR EVENTOS POR CREATEDAT (MAIS RECENTES PRIMEIRO)
+          const sortedEvents = transformedEvents.sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
           
-          setEvents(transformedEvents);
-        }
+          setEvents(sortedEvents);
 
-        // Fetch categorias da API
-        const categoriesResult = await getEventCategories();
-        if (categoriesResult.success && categoriesResult.categories) {
-          // Transformar categorias da API para o formato do componente
-          const apiCategories: Category[] = categoriesResult.categories.map((cat: any) => ({
-            key: cat.id, // Usar o ID real da categoria
-            label: cat.name,
-            count: events.filter(e => e.category === cat.id).length
-          }));
+          // Fetch categorias da API
+          const categoriesResult = await getEventCategories();
+          if (categoriesResult.success && categoriesResult.categories) {
+            const eventCountByCategory: { [key: string]: number } = {};
+            sortedEvents.forEach(event => {
+              eventCountByCategory[event.category] = (eventCountByCategory[event.category] || 0) + 1;
+            });
 
-          // Adicionar categoria "Todos" no início
-          const allCategories: Category[] = [
-            { 
-              key: 'all', 
-              label: 'Todos os Eventos', 
-              count: events.length 
-            },
-            ...apiCategories
-          ];
+            const apiCategories: Category[] = categoriesResult.categories.map((cat: any) => ({
+              key: cat.id,
+              label: cat.name,
+              count: eventCountByCategory[cat.id] || 0
+            }));
 
-          setCategories(allCategories);
+            const uncategorizedCount = eventCountByCategory['uncategorized'] || 0;
+            const allCategories: Category[] = [
+              { 
+                key: 'all', 
+                label: 'Todos os Eventos', 
+                count: sortedEvents.length 
+              },
+              ...apiCategories
+            ];
+
+            if (uncategorizedCount > 0) {
+              allCategories.push({
+                key: 'uncategorized',
+                label: 'Sem Categoria',
+                count: uncategorizedCount
+              });
+            }
+
+            setCategories(allCategories);
+          }
         }
         
       } catch (err) {
@@ -109,31 +189,6 @@ export default function AllEventsPage() {
     fetchData();
   }, []);
 
-  // Helper function to generate category from event title
-  const getCategoryFromTitle = (title: string): string => {
-    const titleLower = title.toLowerCase();
-    
-    if (titleLower.includes('música') || titleLower.includes('festival') || titleLower.includes('concerto')) {
-      return 'music';
-    } else if (titleLower.includes('tecnologia') || titleLower.includes('digital') || titleLower.includes('tech')) {
-      return 'tech';
-    } else if (titleLower.includes('negócio') || titleLower.includes('business') || titleLower.includes('empreendedorismo')) {
-      return 'business';
-    } else if (titleLower.includes('arte') || titleLower.includes('cultura') || titleLower.includes('exposição')) {
-      return 'art';
-    } else if (titleLower.includes('educação') || titleLower.includes('workshop') || titleLower.includes('conferência')) {
-      return 'education';
-    } else if (titleLower.includes('gastronomia') || titleLower.includes('comida') || titleLower.includes('culinária')) {
-      return 'food';
-    } else if (titleLower.includes('desporto') || titleLower.includes('maratona') || titleLower.includes('corrida')) {
-      return 'sports';
-    } else if (titleLower.includes('moda') || titleLower.includes('fashion')) {
-      return 'fashion';
-    } else {
-      return 'workshop';
-    }
-  };
-
   const dateFilters: DateFilter[] = [
     { key: 'all', label: 'Todas as Datas' },
     { key: 'today', label: 'Hoje' },
@@ -145,7 +200,7 @@ export default function AllEventsPage() {
   const filteredEvents = useMemo(() => {
     let filtered = events;
 
-    // Filter by category - agora usando IDs reais das categorias
+    // Filter by category
     if (activeFilter !== 'all') {
       filtered = filtered.filter(event => event.category === activeFilter);
     }
@@ -200,32 +255,50 @@ export default function AllEventsPage() {
 
     // Sort events
     filtered.sort((a, b) => {
-      switch (sortBy) {
+      const [sortType, sortOrder] = sortBy.split('-');
+      const orderMultiplier = sortOrder === 'desc' ? -1 : 1;
+
+      switch (sortType) {
+        case 'recent':
+          return (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) * orderMultiplier;
         case 'date':
-          return new Date(a.date).getTime() - new Date(b.date).getTime();
+          return (new Date(a.date).getTime() - new Date(b.date).getTime()) * orderMultiplier;
         case 'price':
-          return a.price - b.price;
+          return (a.price - b.price) * orderMultiplier;
         case 'rating':
-          return b.rating - a.rating;
+          return (b.rating - a.rating) * orderMultiplier;
         case 'popular':
-          return b.attendees - a.attendees;
+          return (b.attendees - a.attendees) * orderMultiplier;
         default:
-          return 0;
+          return (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) * orderMultiplier;
       }
     });
 
     return filtered;
   }, [activeFilter, searchQuery, priceRange, sortBy, dateFilter, events]);
 
-  const handleBuyTicket = (eventId: number) => {
-    router.push(`/comprar/${eventId}`);
+  // 🔥 EVENTOS VISÍVEIS (apenas os primeiros X)
+  const visibleEvents = useMemo(() => {
+    return filteredEvents.slice(0, visibleEventsCount);
+  }, [filteredEvents, visibleEventsCount]);
+
+  // 🔥 FUNÇÃO PARA MOSTRAR MAIS EVENTOS
+  const showMoreEvents = () => {
+    setVisibleEventsCount(prev => prev + 12);
   };
+
+  // 🔥 FUNÇÃO PARA RESETAR QUANDO MUDAR FILTROS
+  useEffect(() => {
+    setVisibleEventsCount(12);
+  }, [activeFilter, searchQuery, priceRange, dateFilter, sortBy]);
 
   const handleResetFilters = () => {
     setActiveFilter('all');
     setSearchQuery('');
     setPriceRange([0, 2000]);
     setDateFilter('all');
+    setSortBy('recent-desc');
+    setVisibleEventsCount(12);
   };
 
   if (loading) {
@@ -314,7 +387,8 @@ export default function AllEventsPage() {
           {/* Results Info */}
           <div className="flex justify-between items-center mb-6">
             <p className="text-muted-foreground">
-              Mostrando <span className="font-semibold text-foreground">{filteredEvents.length}</span> eventos
+              Mostrando <span className="font-semibold text-foreground">{visibleEvents.length}</span> de{' '}
+              <span className="font-semibold text-foreground">{filteredEvents.length}</span> eventos
               {activeFilter !== 'all' && ` em ${categories.find(c => c.key === activeFilter)?.label}`}
             </p>
           </div>
@@ -325,14 +399,13 @@ export default function AllEventsPage() {
               layout
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             >
-              {filteredEvents.map((event, index) => (
+              {visibleEvents.map((event, index) => (
                 <EventCard
                   key={event.id}
                   event={event}
                   viewMode={viewMode}
                   categories={categories}
                   index={index}
-                  onBuyTicket={handleBuyTicket}
                 />
               ))}
             </motion.div>
@@ -341,17 +414,30 @@ export default function AllEventsPage() {
               layout
               className="space-y-4"
             >
-              {filteredEvents.map((event, index) => (
+              {visibleEvents.map((event, index) => (
                 <EventCard
                   key={event.id}
                   event={event}
                   viewMode={viewMode}
                   categories={categories}
                   index={index}
-                  onBuyTicket={handleBuyTicket}
                 />
               ))}
             </motion.div>
+          )}
+
+          {/* 🔥 BOTÃO MOSTRAR MAIS */}
+          {visibleEvents.length < filteredEvents.length && (
+            <div className="flex justify-center mt-8">
+              <motion.button
+                onClick={showMoreEvents}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+              >
+                Mostrar Mais ({filteredEvents.length - visibleEvents.length} eventos restantes)
+              </motion.button>
+            </div>
           )}
 
           {/* No Results */}

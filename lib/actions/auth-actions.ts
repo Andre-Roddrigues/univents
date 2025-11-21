@@ -1,23 +1,16 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { routes } from "@/config/routes";
-import { createSessionToken, destroySession } from "@/services/auth-services";
 import axios from "axios";
-import { redirect } from "next/navigation";
-import { decodeJwt } from "jose";
-import { loginSchema } from "../validations/LoginSchema";
+import { registerSchema, RegisterSchema } from "../validations/RegisterSchema";
 import { parseZodErrors } from "../helpers/zod-helpers";
 import { getErrorMessage } from "../utils";
-import { registerSchema, RegisterSchema } from "../validations/RegisterSchema";
+import { loginSchema } from "../validations/LoginSchema";
+import { routes } from "@/config/routes";
 
-export type LoginFormState = {
-  errors?: Record<string, string[]>;
-  success?: boolean;
-  data?: {};
-  message?: string;
-};
-
+// =============================
+// CREATE ACCOUNT
+// =============================
 export async function createAccount(data: RegisterSchema) {
   const result = registerSchema.safeParse(data);
   if (!result.success) {
@@ -30,144 +23,108 @@ export async function createAccount(data: RegisterSchema) {
 
   try {
     const response = await axios.post(routes.create_account, data);
+
     if (response.status === 200 || response.status === 201) {
-      return { data: response.data, status: response.status, success: true };
+      return {
+        data: response.data,
+        status: response.status,
+        success: true,
+        message: "Conta criada com sucesso!",
+      };
     }
   } catch (error) {
-    console.error("Erro na resposta:", error);
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
-      if (status === 400 || status === 401) {
-        return {
-          success: false,
-          status: status,
-          message:
-            "Credenciais inválidas. Por favor, verifique seu e-mail ou senha.",
-        };
-      }
 
       return {
         success: false,
         status: status ?? 500,
-        errorMessage: getErrorMessage(error) || "Erro de autenticação.",
+        message: error.response?.data?.message || "Erro ao criar conta.",
       };
     }
     return {
       success: false,
-      errorMessage: getErrorMessage(error),
+      message: getErrorMessage(error),
     };
   }
 }
 
+// =============================
+// VERIFY OTP
+// =============================
 export async function verifyOTP(email: string, otp: string) {
   try {
-    let response;
+    const response = await axios.patch(routes.verify_otp, { otp, email });
 
-    console.log("Verificando OTP Login:", otp);
-
-    response = await axios.patch(routes.verify_otp, { otp, email });
-
-    if (response.status === 200) {
-      const token = response.data.token;
-
-      const user = decodeJwt(token);
-      user.id = user.sub;
-      user.accessToken = token;
-
-      await createSessionToken(user);
+    // Guardar token no cookie
+    if (response.status === 200 && response.data?.token) {
+      cookies().set("token", response.data.token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        path: "/",
+      });
     }
 
     return { data: response.data, status: response.status };
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      console.error("Erro na resposta:", error.response?.data);
-      console.error("Status:", error.response?.status);
       throw error.response?.data;
-    } else {
-      console.error("Erro desconhecido:", error);
     }
+    throw error;
   }
 }
-export async function login(value: string, password: string) {
-  const rawData = {
-    email: value,
-    password: password,
-  };
 
-  const result = loginSchema.safeParse(rawData);
-  if (!result.success) {
-    return {
-      success: false,
-      errors: parseZodErrors(result.error),
-      message: "Preencha os campos correctamente e tente novamente.",
-    };
-  }
-
+// =============================
+// LOGIN
+// =============================
+// =============================
+// LOGIN
+// =============================
+export async function login(identifier: string, password: string) {
   try {
-    const response = await axios.post(routes.login, { value, password });
-    if (response.status === 200) {
-      const accessToken = response.data.token;
-      const user = decodeJwt(accessToken);
-      user.id = user.sub;
-      user.accessToken = accessToken;
+    const response = await axios.post(routes.login, { identifier, password });
 
-      await createSessionToken(user);
-      return {
-        sucess: true,
-        status: response.status,
-        data: response.data,
-        message: "Login efectuado com sucesso",
-      };
+    if (response.status === 200 && response.data.token) {
+      // Salva token no cookie
+      cookies().set("token", response.data.token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        path: "/",
+      });
     }
+
+    return response.data; // { success, message, userData, token }
   } catch (error) {
-    console.error("Erro na resposta:", error);
     if (axios.isAxiosError(error)) {
-      const status = error.response?.status;
-      if (status === 400 || status === 401) {
-        return {
-          sucess: false,
-          status: status,
-          message:
-            "Credenciais inválidas. Por favor, verifique seu e-mail ou senha.",
-        };
-      }
-      if (status === 429) {
-        return {
-          sucess: false,
-          status: status,
-          message:
-            "Você excedeu o limite de tentativas de login. Por favor, tente novamente mais tarde(Após 5 Minutos).",
-        };
-      }
       return {
         success: false,
-        status: status ?? 500,
-        errorMessage: getErrorMessage(error) || "Erro de autenticação.",
+        message: error.response?.data?.message || "Erro ao fazer login",
       };
     }
-    return {
-      success: false,
-      errorMessage: getErrorMessage(error),
-    };
+    return { success: false, message: "Erro inesperado" };
   }
 }
 
+// =============================
+// REENVIAR OTP
+// =============================
 export async function resend_OTP(email: string) {
   try {
     const response = await axios.post(routes.resend_otp, { email });
-
     return { data: response.data, status: response.status };
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      console.error("Erro na resposta:", error.response?.data);
-      console.error("Status:", error.message);
       throw error.response?.data;
-    } else {
-      console.error("Erro desconhecido:", error);
     }
+    throw error;
   }
 }
 
+// =============================
+// LOGOUT
+// =============================
 export async function logout() {
-  destroySession();
+  cookies().delete("token");
 }

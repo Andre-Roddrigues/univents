@@ -1,13 +1,13 @@
 // config/routes.ts
-const API_BASE_URL = `https://backend-ebook.unitec.academy/api`;
+const API_BASE_URL = `https://backend-eventos.unitec.academy`;
 const API_MPESA = process.env.NEXT_PUBLIC_API_MPESA || "";
 
 export const routes = {
-  backend_url:`https://backend-ebook.unitec.academy/api`,
+  backend_url:`https://backend-eventos.unitec.academy`,
 
   //auth routes
-  login: `${API_BASE_URL}/loginuser`,
-  create_account: `${API_BASE_URL}/signupuser`,
+  login: `${API_BASE_URL}/auth/login`,
+  create_account: `${API_BASE_URL}/auth/register`,
   verify_otp: `${API_BASE_URL}/confirmsignupuser`,
   resend_otp: `${API_BASE_URL}/resendotpuser`,
   request_password_recovery: `${API_BASE_URL}/request-password-recovery`,

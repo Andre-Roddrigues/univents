@@ -13,12 +13,12 @@ export default async function RegisterPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-black/5 via-transparent to-black/10"></div>
 
             <div className="relative z-10">
-              <div className="inline-flex items-center justify-center w-24 h-24 bg-white/20 rounded-2xl mb-6 backdrop-blur-sm border border-white/30">
+              <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl mb-6 backdrop-blur-sm ">
                 <Logo className="w-full h-full rounded-2xl" />
               </div>
 
               <h1 className="text-3xl font-bold text-primary-foreground mb-3 font-montserrat">
-                UniBooks
+                UniVents
               </h1>
 
               <p className="text-blue-100 mb-8 font-playfair font-semibold">
@@ -70,7 +70,7 @@ export default async function RegisterPage() {
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-bold text-primary-foreground mb-2 font-montserrat">
-              UniMentors
+              UniVents
             </h1>
 
             <p className="text-blue-100 text-sm sm:text-base font-playfair font-semibold mb-4">

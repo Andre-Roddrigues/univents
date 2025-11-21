@@ -16,7 +16,7 @@ export async function middleware(req: NextRequest) {
   }
 
   if ((pathname === "/login" || pathname === "/verify-otp") && session) {
-    const redirectUrl = req.nextUrl.searchParams.get("redirect") || "/books";
+    const redirectUrl = req.nextUrl.searchParams.get("redirect") || "/eventos";
     return NextResponse.redirect(new URL(redirectUrl, req.url));
   }
 

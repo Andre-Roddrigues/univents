@@ -1,8 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Filter, Search, Grid, List, ChevronDown } from 'lucide-react';
-import React from 'react';
+import { Filter, Search, Grid, List, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState } from 'react';
 
 export interface DateFilter {
   key: string;
@@ -42,11 +42,77 @@ const EventFilter: React.FC<EventFilterProps> = ({
   dateFilters,
   onResetFilters
 }) => {
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // 🔥 Padrão: descendente (mais recentes primeiro)
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-MZ', {
       style: 'currency',
       currency: 'MZN'
     }).format(price);
+  };
+
+  // 🔥 OPÇÕES DE ORDENAÇÃO ATUALIZADAS
+  const sortOptions = [
+    { value: 'recent', label: 'Recentes' },
+    { value: 'date', label: 'Data do Evento' },
+    { value: 'price', label: 'Preço' },
+    { value: 'rating', label: 'Avaliação' },
+    { value: 'popular', label: 'Popularidade' },
+  ];
+
+  // 🔥 FUNÇÃO PARA LIDAR COM MUDANÇA DE ORDENAÇÃO
+  const handleSortChange = (newSortBy: string) => {
+    // Se estiver mudando o tipo de ordenação, mantém a ordem atual
+    if (newSortBy !== sortBy) {
+      onSortChange(`${newSortBy}-${sortOrder}`);
+    } else {
+      // Se estiver no mesmo tipo, alterna a ordem
+      const newOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+      setSortOrder(newOrder);
+      onSortChange(`${newSortBy}-${newOrder}`);
+    }
+  };
+
+  // 🔥 FUNÇÃO PARA ALTERNAR APENAS A ORDEM
+  const toggleSortOrder = () => {
+    const newOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+    setSortOrder(newOrder);
+    
+    // Extrai o tipo de ordenação atual (sem a ordem)
+    const currentSortType = sortBy.split('-')[0];
+    onSortChange(`${currentSortType}-${newOrder}`);
+  };
+
+  // 🔥 EXTRAI O TIPO DE ORDENAÇÃO ATUAL (SEM A ORDEM)
+  const currentSortType = sortBy.split('-')[0];
+
+  // 🔥 GET SORT LABEL BASEADO NO TIPO E ORDEM
+  const getSortLabel = () => {
+    const baseLabel = sortOptions.find(opt => opt.value === currentSortType)?.label || 'Ordenar';
+    
+    switch (currentSortType) {
+      case 'recent':
+        return sortOrder === 'desc' ? 'Mais Recentes' : 'Mais Antigos';
+      case 'date':
+        return sortOrder === 'desc' ? 'Data Próxima' : 'Data Distante';
+      case 'price':
+        return sortOrder === 'desc' ? 'Preço Alto' : 'Preço Baixo';
+      case 'rating':
+        return sortOrder === 'desc' ? 'Melhor Avaliação' : 'Pior Avaliação';
+      case 'popular':
+        return sortOrder === 'desc' ? 'Mais Populares' : 'Menos Populares';
+      default:
+        return baseLabel;
+    }
+  };
+
+  // 🔥 GET ICON BASEADO NA ORDEM
+  const getSortIcon = () => {
+    if (sortOrder === 'desc') {
+      return <ChevronDown className="w-4 h-4" />;
+    } else {
+      return <ChevronUp className="w-4 h-4" />;
+    }
   };
 
   return (
@@ -69,17 +135,35 @@ const EventFilter: React.FC<EventFilterProps> = ({
         {/* View Controls */}
         <div className="flex items-center gap-4 w-full lg:w-auto">
           
-          {/* Sort By */}
-          <select
-            value={sortBy}
-            onChange={(e) => onSortChange(e.target.value)}
-            className="px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            <option value="date">Ordenar por Data</option>
-            <option value="price">Ordenar por Preço</option>
-            <option value="rating">Ordenar por Avaliação</option>
-            <option value="popular">Ordenar por Popularidade</option>
-          </select>
+          {/* Sort By - ATUALIZADO COM SETAS */}
+          <div className="flex items-center border border-border rounded-lg bg-background overflow-hidden">
+            {/* Dropdown do tipo de ordenação */}
+            <select
+              value={currentSortType}
+              onChange={(e) => handleSortChange(e.target.value)}
+              className="px-3 py-2 bg-background focus:outline-none border-r border-border"
+            >
+              {sortOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            {/* Botão para alternar ordem */}
+            <button
+              onClick={toggleSortOrder}
+              className="px-3 py-2 hover:bg-muted transition-colors flex items-center"
+              title={getSortLabel()}
+            >
+              {getSortIcon()}
+            </button>
+          </div>
+
+          {/* Display do label atual */}
+          <div className="hidden sm:block text-sm text-muted-foreground min-w-[120px]">
+            {getSortLabel()}
+          </div>
 
           {/* View Toggle */}
           <div className="flex border border-border rounded-lg overflow-hidden">
@@ -127,7 +211,7 @@ const EventFilter: React.FC<EventFilterProps> = ({
               <input
                 type="range"
                 min="0"
-                max="2000"
+                max="10000"
                 step="50"
                 value={priceRange[1]}
                 onChange={(e) => onPriceRangeChange([priceRange[0], parseInt(e.target.value)])}
@@ -135,7 +219,7 @@ const EventFilter: React.FC<EventFilterProps> = ({
               />
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
                 <span>{formatPrice(0)}</span>
-                <span>{formatPrice(2000)}</span>
+                <span>{formatPrice(10000)}</span>
               </div>
             </div>
 
