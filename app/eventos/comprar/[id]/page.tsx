@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, 
   MapPin, 
@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import ButtonCart from '@/components/navbar/ButtonCart';
+import { createCart } from '@/lib/actions/cart-actions';
 
 // Interface baseada na API real
 interface ApiEvent {
@@ -96,6 +98,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
   const [event, setEvent] = useState<EventPurchaseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCartFeedback, setShowCartFeedback] = useState(false);
 
   // Fetch event data from API
   useEffect(() => {
@@ -288,6 +291,11 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
       setIsProcessing(false);
     }
   };
+
+const handleAddToCart = () => {
+  setShowCartFeedback(true);
+  setTimeout(() => setShowCartFeedback(false), 3000);
+};
 
   const paymentMethods = [
     { id: 'mpesa', name: 'M-Pesa', icon: Smartphone, description: 'Pagamento rápido via M-Pesa' },
@@ -641,25 +649,52 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                 </div>
               </div>
 
-              {/* Botão de Compra */}
-              <button
-                onClick={handlePurchase}
-                disabled={isProcessing || !selectedTicket || selectedTicket.availableQuantity === 0 || ticketQuantity > selectedTicket.availableQuantity}
-                className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-bold text-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
-              >
-                {isProcessing ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                    Processando...
-                  </>
-                ) : !selectedTicket ? (
-                  'Selecione um bilhete'
-                ) : selectedTicket.availableQuantity === 0 ? (
-                  'Bilhetes Esgotados'
-                ) : (
-                  `Comprar ${ticketQuantity} Bilhete${ticketQuantity > 1 ? 's' : ''} - ${total.toFixed(2)} MZN`
+              {/* Botões de Ação */}
+              <div className="space-y-4">
+                {/* Botão de Compra Imediata */}
+                <button
+                  onClick={handlePurchase}
+                  disabled={isProcessing || !selectedTicket || selectedTicket.availableQuantity === 0 || ticketQuantity > selectedTicket.availableQuantity}
+                  className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-bold text-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                      Processando...
+                    </>
+                  ) : !selectedTicket ? (
+                    'Selecione um bilhete'
+                  ) : selectedTicket.availableQuantity === 0 ? (
+                    'Bilhetes Esgotados'
+                  ) : (
+                    `Comprar ${ticketQuantity} Bilhete${ticketQuantity > 1 ? 's' : ''} - ${total.toFixed(2)} MZN`
+                  )}
+                </button>
+
+                {/* Botão Adicionar ao Carrinho */}
+                {event && selectedTicket && (
+                  <ButtonCart
+                    event={event}
+                    selectedTicket={selectedTicket}
+                    ticketQuantity={ticketQuantity}
+                    onAddToCart={handleAddToCart}
+                  />
                 )}
-              </button>
+
+                {/* Feedback de adição ao carrinho */}
+                <AnimatePresence>
+                  {showCartFeedback && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="p-4 bg-green-100 border border-green-300 rounded-lg text-green-800 text-center"
+                    >
+                      ✅ Adicionado ao carrinho!
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               {/* Garantias */}
               <div className="text-center space-y-2">

@@ -3,28 +3,41 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  X, 
-  ShoppingCart, 
-  Trash2, 
-  Plus, 
-  Minus,
-  Calendar,
-  MapPin,
-  Ticket
+  X, ShoppingCart, Trash2, Plus, Minus, Calendar,
+  MapPin, Ticket, RefreshCw, Loader
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { listCarts, updateCart, deleteCart } from '@/lib/actions/cart-actions';
 
+// Tipos atualizados conforme o backend
 interface CartItem {
-  eventId: string;
+  id: string;
   ticketId: string;
-  eventTitle: string;
-  ticketName: string;
-  ticketType: string;
-  price: number;
   quantity: number;
-  eventImage: string;
-  eventDate: string;
-  eventLocation: string;
+  price: number;
+  totalProductDiscount: number | null;
+  ticket?: {
+    id: string;
+    name: string;
+    type: string;
+    event?: {
+      id: string;
+      title: string;
+      img: string;
+      startDate: string;
+      location: string;
+      province: string;
+    };
+  };
+}
+
+interface Cart {
+  id: string;
+  discount: number | null;
+  totalPriceAftertDiscount: number | null;
+  totalPrice: number;
+  userId: string;
+  cartItems: CartItem[];
 }
 
 interface CartModalProps {
@@ -33,66 +46,154 @@ interface CartModalProps {
 }
 
 export default function CartModal({ isOpen, onClose }: CartModalProps) {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [isClient, setIsClient] = useState(false);
+  const [carts, setCarts] = useState<Cart[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updatingItem, setUpdatingItem] = useState<string | null>(null);
+  const [deletingCart, setDeletingCart] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
   const router = useRouter();
 
+  // ===========================================
+  // 🔄 Carregar listas de carrinhos
+  // ===========================================
   useEffect(() => {
-    setIsClient(true);
-    loadCartItems();
-    
-    // Ouvir eventos de atualização do carrinho
-    const handleCartUpdate = () => loadCartItems();
-    window.addEventListener('cartUpdated', handleCartUpdate);
-    
-    return () => {
-      window.removeEventListener('cartUpdated', handleCartUpdate);
-    };
-  }, []);
+    if (isOpen) {
+      loadCarts();
+    }
+  }, [isOpen]);
 
-  const loadCartItems = () => {
-    if (typeof window !== 'undefined') {
-      const storedCart = localStorage.getItem('eventCart');
-      setCartItems(storedCart ? JSON.parse(storedCart) : []);
+  const loadCarts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const result = await listCarts();
+
+      // handle both response shapes: some APIs return { data: { carts } } and others return { carts }
+      const cartsPayload = (result as any).data?.carts ?? (result as any).carts;
+
+      if (result.success && cartsPayload) {
+        setCarts(cartsPayload);
+      } else {
+        setError((result as any).message || "Erro ao carregar carrinhos");
+      }
+    } catch (err) {
+      console.error("Erro ao carregar carrinhos:", err);
+      setError("Erro ao carregar carrinhos");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const updateQuantity = (eventId: string, ticketId: string, newQuantity: number) => {
+  // ===========================================
+  // 🔄 Atualizar quantidade de um item
+  // ===========================================
+  const updateCartItem = async (cartId: string, itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
-    
-    const updatedCart = cartItems.map(item =>
-      item.eventId === eventId && item.ticketId === ticketId
-        ? { ...item, quantity: newQuantity }
-        : item
-    );
-    
-    setCartItems(updatedCart);
-    localStorage.setItem('eventCart', JSON.stringify(updatedCart));
-    window.dispatchEvent(new Event('cartUpdated'));
+
+    setUpdatingItem(itemId);
+
+    try {
+      const cart = carts.find(c => c.id === cartId);
+      if (!cart) return;
+
+      const updatedItems = cart.cartItems.map(item =>
+        item.id === itemId ? { ...item, quantity: newQuantity } : item
+      );
+
+      const payload = {
+        items: updatedItems.map(item => ({
+          ticketId: item.ticketId,
+          quantity: item.quantity.toString()
+        }))
+      };
+
+      const result = await updateCart(cartId, payload);
+
+      if (result.success) {
+        await loadCarts();
+      } else {
+        setError(result.message || "Erro ao atualizar item");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Erro ao atualizar item do carrinho");
+    } finally {
+      setUpdatingItem(null);
+    }
   };
 
-  const removeItem = (eventId: string, ticketId: string) => {
-    const updatedCart = cartItems.filter(
-      item => !(item.eventId === eventId && item.ticketId === ticketId)
-    );
-    
-    setCartItems(updatedCart);
-    localStorage.setItem('eventCart', JSON.stringify(updatedCart));
-    window.dispatchEvent(new Event('cartUpdated'));
+  // ===========================================
+  // ❌ Remover item ou carrinho
+  // ===========================================
+  const removeCartItem = async (cartId: string, itemId: string) => {
+    setUpdatingItem(itemId);
+
+    try {
+      const cart = carts.find(c => c.id === cartId);
+      if (!cart) return;
+
+      if (cart.cartItems.length === 1) {
+        await removeCart(cartId);
+        return;
+      }
+
+      const updatedItems = cart.cartItems.filter(i => i.id !== itemId);
+
+      const payload = {
+        items: updatedItems.map(item => ({
+          ticketId: item.ticketId,
+          quantity: item.quantity.toString()
+        }))
+      };
+
+      const result = await updateCart(cartId, payload);
+
+      if (result.success) {
+        await loadCarts();
+      } else {
+        setError(result.message);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Erro ao remover item");
+    } finally {
+      setUpdatingItem(null);
+    }
   };
 
-  const clearCart = () => {
-    setCartItems([]);
-    localStorage.removeItem('eventCart');
-    window.dispatchEvent(new Event('cartUpdated'));
+  const removeCart = async (cartId: string) => {
+    setDeletingCart(cartId);
+
+    try {
+      const result = await deleteCart(cartId);
+
+      if (result.success) {
+        await loadCarts();
+      } else {
+        setError(result.message);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Erro ao remover carrinho");
+    } finally {
+      setDeletingCart(null);
+    }
   };
 
+  // ===========================================
+  // 🧮 Totais
+  // ===========================================
   const getTotalItems = () => {
-    return cartItems.reduce((total, item) => total + item.quantity, 0);
+    return carts.reduce(
+      (t, c) => t + c.cartItems.reduce((i, v) => i + v.quantity, 0),
+      0
+    );
   };
 
   const getTotalPrice = () => {
-    return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+    return carts.reduce((t, c) => t + c.totalPrice, 0);
   };
 
   const handleCheckout = () => {
@@ -100,8 +201,15 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
     router.push('/checkout');
   };
 
-  if (!isClient) return null;
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString("pt-MZ");
 
+  const formatCurrency = (v: number) =>
+    v.toLocaleString("pt-MZ", { style: "currency", currency: "MZN" });
+
+  // ===========================================
+  // 🖥 RENDER
+  // ===========================================
   return (
     <AnimatePresence>
       {isOpen && (
@@ -114,164 +222,157 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
             className="fixed inset-0 bg-black/50 z-50"
             onClick={onClose}
           />
-          
+
           {/* Modal */}
           <motion.div
             initial={{ opacity: 0, x: 300 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 300 }}
-            transition={{ type: 'spring', damping: 30 }}
+            transition={{ type: "spring", damping: 30 }}
             className="fixed right-0 top-0 h-full w-full max-w-md bg-background z-50 shadow-xl"
           >
             <div className="flex flex-col h-full">
-              {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-border">
+
+              {/* HEADER */}
+              <div className="flex items-center justify-between p-6 border-b">
                 <div className="flex items-center gap-3">
                   <ShoppingCart className="w-6 h-6 text-primary" />
-                  <h2 className="text-xl font-bold text-foreground">
-                    Meu Carrinho
-                    {cartItems.length > 0 && (
-                      <span className="ml-2 text-sm font-normal text-muted-foreground">
-                        ({getTotalItems()} {getTotalItems() === 1 ? 'item' : 'itens'})
-                      </span>
+                  <div>
+                    <h2 className="text-xl font-bold">Meus Carrinhos</h2>
+                    {carts.length > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        {getTotalItems()} itens no total
+                      </p>
                     )}
-                  </h2>
+                  </div>
                 </div>
-                <button
-                  onClick={onClose}
-                  className="p-2 hover:bg-muted rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5" />
+
+                <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg">
+                  <X />
                 </button>
               </div>
 
-              {/* Content */}
+              {/* CONTENT */}
               <div className="flex-1 overflow-y-auto p-6">
-                {cartItems.length === 0 ? (
+                {loading ? (
+                  <div className="flex justify-center py-12">
+                    <Loader className="w-8 h-8 animate-spin" />
+                  </div>
+                ) : carts.length === 0 ? (
                   <div className="text-center py-12">
-                    <ShoppingCart className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                      Carrinho vazio
-                    </h3>
-                    <p className="text-muted-foreground">
-                      Adicione bilhetes ao seu carrinho
-                    </p>
+                    <ShoppingCart className="w-16 h-16 text-muted mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold">Nenhum carrinho encontrado</h3>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {cartItems.map((item, index) => (
+                  <div className="space-y-6">
+                    {carts.map((cart, idx) => (
                       <motion.div
-                        key={`${item.eventId}-${item.ticketId}`}
+                        key={cart.id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="bg-card border border-border rounded-lg p-4"
+                        className="bg-card border rounded-lg p-4"
                       >
-                        <div className="flex gap-4">
-                          <img
-                            src={item.eventImage}
-                            alt={item.eventTitle}
-                            className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-                          />
-                          
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-foreground text-sm leading-tight mb-1">
-                              {item.eventTitle}
-                            </h4>
-                            
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                              <Calendar className="w-3 h-3" />
-                              {new Date(item.eventDate).toLocaleDateString('pt-MZ')}
-                            </div>
-                            
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
-                              <MapPin className="w-3 h-3" />
-                              {item.eventLocation}
-                            </div>
-                            
-                            <div className="flex items-center justify-between">
-                              <div>
+                        <div className="flex justify-between mb-4">
+                          <h3 className="font-semibold">Carrinho {idx + 1}</h3>
+                          <button
+                            className="text-red-500"
+                            onClick={() => removeCart(cart.id)}
+                          >
+                            <Trash2 />
+                          </button>
+                        </div>
+
+                        {cart.cartItems.map(item => (
+                          <div
+                            key={item.id}
+                            className="flex gap-3 bg-muted/20 p-3 rounded-lg"
+                          >
+                            <img
+                              src={item.ticket?.event?.img || "/placeholder-event.jpg"}
+                              className="w-12 h-12 rounded"
+                            />
+
+                            <div className="flex-1">
+
+                              <h4 className="text-sm font-medium">
+                                {item.ticket?.event?.title || "Evento"}
+                              </h4>
+
+                              {/* Infos */}
+                              {item.ticket?.event && (
+                                <>
+                                  <div className="text-xs flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    {formatDate(item.ticket.event.startDate)}
+                                  </div>
+
+                                  <div className="text-xs flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" />
+                                    {item.ticket.event.location}, {item.ticket.event.province}
+                                  </div>
+                                </>
+                              )}
+
+                              <div className="flex justify-between mt-2">
+                                <div>
+                                  <div className="text-sm font-bold">
+                                    {formatCurrency(item.quantity * item.price)}
+                                  </div>
+                                </div>
+
+                                {/* Quantidade */}
                                 <div className="flex items-center gap-2">
-                                  <Ticket className="w-3 h-3 text-primary" />
-                                  <span className="text-sm font-medium text-foreground">
-                                    {item.ticketName}
-                                  </span>
-                                  <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">
-                                    {item.ticketType}
-                                  </span>
-                                </div>
-                                <div className="text-sm font-bold text-foreground mt-1">
-                                  {(item.price * item.quantity).toLocaleString('pt-MZ', {
-                                    style: 'currency',
-                                    currency: 'MZN'
-                                  })}
-                                </div>
-                              </div>
-                              
-                              <div className="flex items-center gap-2">
-                                <div className="flex items-center border border-border rounded-lg">
                                   <button
-                                    onClick={() => updateQuantity(item.eventId, item.ticketId, item.quantity - 1)}
-                                    className="p-1 hover:bg-muted transition-colors"
+                                    onClick={() => updateCartItem(cart.id, item.id, item.quantity - 1)}
+                                    disabled={updatingItem === item.id}
+                                    className="p-1 border rounded"
                                   >
                                     <Minus className="w-3 h-3" />
                                   </button>
-                                  <span className="px-2 text-sm font-medium min-w-8 text-center">
-                                    {item.quantity}
-                                  </span>
+                                  <span>{item.quantity}</span>
                                   <button
-                                    onClick={() => updateQuantity(item.eventId, item.ticketId, item.quantity + 1)}
-                                    className="p-1 hover:bg-muted transition-colors"
+                                    onClick={() => updateCartItem(cart.id, item.id, item.quantity + 1)}
+                                    disabled={updatingItem === item.id}
+                                    className="p-1 border rounded"
                                   >
                                     <Plus className="w-3 h-3" />
                                   </button>
+
+                                  <button
+                                    onClick={() => removeCartItem(cart.id, item.id)}
+                                    className="text-red-500"
+                                  >
+                                    <Trash2 />
+                                  </button>
                                 </div>
-                                
-                                <button
-                                  onClick={() => removeItem(item.eventId, item.ticketId)}
-                                  className="p-1 text-destructive hover:bg-destructive/10 rounded transition-colors"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
                               </div>
+
                             </div>
                           </div>
-                        </div>
+                        ))}
                       </motion.div>
                     ))}
                   </div>
                 )}
               </div>
 
-              {/* Footer */}
-              {cartItems.length > 0 && (
-                <div className="border-t border-border p-6 space-y-4">
-                  <div className="flex justify-between items-center text-lg font-bold">
-                    <span>Total:</span>
-                    <span>
-                      {getTotalPrice().toLocaleString('pt-MZ', {
-                        style: 'currency',
-                        currency: 'MZN'
-                      })}
-                    </span>
+              {/* FOOTER */}
+              {carts.length > 0 && !loading && (
+                <div className="border-t p-6">
+                  <div className="flex justify-between font-bold text-lg mb-4">
+                    <span>Total Geral:</span>
+                    <span>{formatCurrency(getTotalPrice())}</span>
                   </div>
-                  
-                  <div className="flex gap-3">
-                    <button
-                      onClick={clearCart}
-                      className="flex-1 py-3 px-4 border border-border text-foreground rounded-lg hover:bg-muted transition-colors font-medium"
-                    >
-                      Limpar
-                    </button>
-                    <button
-                      onClick={handleCheckout}
-                      className="flex-1 py-3 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-bold"
-                    >
-                      Finalizar Compra
-                    </button>
-                  </div>
+
+                  <button
+                    onClick={handleCheckout}
+                    className="w-full py-3 bg-primary text-white rounded-lg"
+                  >
+                    Finalizar Compra
+                  </button>
                 </div>
               )}
+
             </div>
           </motion.div>
         </>

@@ -13,12 +13,11 @@ export const routes = {
   request_password_recovery: `${API_BASE_URL}/request-password-recovery`,
   reset_password: `${API_BASE_URL}/reset-password`,
 
-  //books routes
-  books: `${API_BASE_URL}/ebooks/list`,
+  carts: `${API_BASE_URL}/carts`,
 
-  //payments routes
+
   deliveries: `${API_BASE_URL}/deliveries`,
   payment_mpesa: API_MPESA,
-  calculate_price: `${API_BASE_URL}/deliveries/calculate-price`,
-  buyebook: `${API_BASE_URL}/buyebook`,
+  carts_create: `${API_BASE_URL}/carts/create`,
+  carts_list: `${API_BASE_URL}/carts/list-user-carts`,
 };
