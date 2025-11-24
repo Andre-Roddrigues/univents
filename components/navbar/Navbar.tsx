@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { navLinks } from "./Navlinks";
 import NavItem from "./NavbarItem";
 import Logo from "./Logo";
-import CartListButton from "../CartListButton";
+// import CartListButton from "../CartListButton";
 import MenuButton from "./MenuButton";
 import AuthButtons from "./AuthButtons";
 import PerfilUser from "./PerfilUser";
@@ -51,11 +51,11 @@ function Navbar() {
 
           <div className="hidden md:flex items-center space-x-4">
             {user ? <UserCircle/> : <AuthButtons />}
-            <CartListButton />
+            {/* <CartListButton /> */}
           </div>
 
           <div className="md:hidden flex items-center mr-4 gap-4">
-            <CartListButton />
+            {/* <CartListButton /> */}
             <MenuButton />
           </div>
         </div>
