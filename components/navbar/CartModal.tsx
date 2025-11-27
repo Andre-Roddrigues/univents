@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, ShoppingCart, Trash2, Plus, Minus,
-  Ticket, RefreshCw, Loader, Ban
+  Ticket, RefreshCw, Loader, Ban, LogIn
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { listCarts, updateCart, deleteCart } from '@/lib/actions/cart-actions';
@@ -72,12 +72,23 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
       if (result.success && Array.isArray(result.carts)) {
         setCarts(result.carts);
       } else {
-        setError(result.message || "Erro ao carregar carrinhos");
+        // Verificar se é erro de autenticação
+        if (result.message?.includes('Token não fornecido') || result.message?.includes('401')) {
+          setError("Sem sessão iniciada");
+        } else {
+          setError(result.message || "Erro ao carregar carrinhos");
+        }
         setCarts([]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao carregar carrinhos:", err);
-      setError("Erro ao carregar carrinhos");
+      
+      // Verificar se é erro de autenticação
+      if (err.message?.includes('Token não fornecido') || err.message?.includes('401') || err.response?.status === 401) {
+        setError("Sem sessão iniciada");
+      } else {
+        setError("Erro ao carregar carrinhos");
+      }
       setCarts([]);
     } finally {
       setLoading(false);
@@ -112,11 +123,22 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
       if (result.success) {
         await loadCarts();
       } else {
-        setError(result.message || "Erro ao atualizar item");
+        // Verificar se é erro de autenticação
+        if (result.message?.includes('Token não fornecido') || result.message?.includes('401')) {
+          setError("Sem sessão iniciada");
+        } else {
+          setError(result.message || "Erro ao atualizar item");
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao atualizar item:", err);
-      setError("Erro ao atualizar item do carrinho");
+      
+      // Verificar se é erro de autenticação
+      if (err.message?.includes('Token não fornecido') || err.message?.includes('401') || err.response?.status === 401) {
+        setError("Sem sessão iniciada");
+      } else {
+        setError("Erro ao atualizar item do carrinho");
+      }
     } finally {
       setUpdatingItem(null);
     }
@@ -151,11 +173,22 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
       if (result.success) {
         await loadCarts();
       } else {
-        setError(result.message || "Erro ao remover item");
+        // Verificar se é erro de autenticação
+        if (result.message?.includes('Token não fornecido') || result.message?.includes('401')) {
+          setError("Sem sessão iniciada");
+        } else {
+          setError(result.message || "Erro ao remover item");
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao remover item:", err);
-      setError("Erro ao remover item do carrinho");
+      
+      // Verificar se é erro de autenticação
+      if (err.message?.includes('Token não fornecido') || err.message?.includes('401') || err.response?.status === 401) {
+        setError("Sem sessão iniciada");
+      } else {
+        setError("Erro ao remover item do carrinho");
+      }
     } finally {
       setUpdatingItem(null);
     }
@@ -170,14 +203,38 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
       if (result.success) {
         await loadCarts();
       } else {
-        setError(result.message || "Erro ao remover carrinho");
+        // Verificar se é erro de autenticação
+        if (result.message?.includes('Token não fornecido') || result.message?.includes('401')) {
+          setError("Sem sessão iniciada");
+        } else {
+          setError(result.message || "Erro ao remover carrinho");
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao remover carrinho:", err);
-      setError("Erro ao remover carrinho");
+      
+      // Verificar se é erro de autenticação
+      if (err.message?.includes('Token não fornecido') || err.message?.includes('401') || err.response?.status === 401) {
+        setError("Sem sessão iniciada");
+      } else {
+        setError("Erro ao remover carrinho");
+      }
     } finally {
       setDeletingCart(null);
     }
+  };
+
+  // ===========================================
+  // 🔐 Funções de autenticação
+  // ===========================================
+  const handleLogin = () => {
+    onClose();
+    router.push('/auth/login'); // Ajuste o caminho conforme sua aplicação
+  };
+
+  const handleSignup = () => {
+    onClose();
+    router.push('/auth/signup'); // Ajuste o caminho conforme sua aplicação
   };
 
   // ===========================================
@@ -299,33 +356,54 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
                   </div>
                 ) : error ? (
                   <div className="text-center py-8">
-                    <div className="text-red-500 mb-4">❌ {error}</div>
-                    <button
-                      onClick={loadCarts}
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                    >
-                      Tentar Novamente
-                    </button>
+                    {error === "Sem sessão iniciada" ? (
+                      // Estado de não autenticado
+                      <div className="space-y-6">
+                        <div className="text-red-500 mb-4">
+                          <Ban className="w-16 h-16 mx-auto mb-2" />
+                          <p className="text-lg font-semibold">Sem sessão iniciada</p>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Faça login para acessar seu carrinho
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <button
+                            onClick={handleLogin}
+                            className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-bold flex items-center justify-center gap-2"
+                          >
+                            <LogIn className="w-5 h-5" />
+                            Fazer Login
+                          </button>
+                          
+                          <button
+                            onClick={handleSignup}
+                            className="w-full py-3 px-4 border border-primary text-primary rounded-lg hover:bg-primary/10 transition-colors font-bold"
+                          >
+                            Criar Conta
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      // Outros erros
+                      <>
+                        <div className="text-red-500 mb-4">❌ {error}</div>
+                        <button
+                          onClick={loadCarts}
+                          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                        >
+                          Tentar Novamente
+                        </button>
+                      </>
+                    )}
                   </div>
                 ) : filteredCarts.length === 0 ? (
                   <div className="text-center py-8">
                     {/* Informações sobre outros status */}
                     {(statusCounts.paidCarts > 0 || statusCounts.canceledCarts > 0) && (
                       <div className="mb-6 p-4 bg-muted/30 rounded-lg">
-                        {/* <h3 className="font-semibold text-foreground mb-2">Outros Carrinhos</h3> */}
                         <div className="space-y-2 text-sm">
-                          {/* {statusCounts.paidCarts > 0 && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-green-600">✅ Compras Finalizadas</span>
-                              <span className="font-medium">{statusCounts.paidCarts}</span>
-                            </div>
-                          )}
-                          {statusCounts.canceledCarts > 0 && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-red-600">❌ Compras Canceladas</span>
-                              <span className="font-medium">{statusCounts.canceledCarts}</span>
-                            </div>
-                          )} */}
+                          {/* Informações opcionais sobre outros carrinhos */}
                         </div>
                       </div>
                     )}
