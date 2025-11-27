@@ -22,7 +22,7 @@ interface TicketsListProps {
   onShare: (ticketId: string) => void;
   onViewQRCode: (ticketId: string) => void;
 }
-
+// components/profile/TicketsList.tsx - Adicione debug
 export function TicketsList({
   loading,
   error,
@@ -35,6 +35,11 @@ export function TicketsList({
   onShare,
   onViewQRCode
 }: TicketsListProps) {
+  
+  console.log('🔍 TicketsList - localTickets:', localTickets);
+  console.log('🔍 TicketsList - loading:', loading);
+  console.log('🔍 TicketsList - error:', error);
+
   if (loading) {
     return (
       <div className="text-center py-8">
@@ -59,6 +64,7 @@ export function TicketsList({
   }
 
   if (!loading && !error && localTickets.length === 0) {
+    console.log('📭 Nenhum bilhete encontrado, mas sem erro');
     return (
       <div className="text-center py-12">
         <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
@@ -79,6 +85,8 @@ export function TicketsList({
       </div>
     );
   }
+
+  console.log('✅ Renderizando', localTickets.length, 'bilhetes');
 
   return (
     <motion.div
@@ -107,17 +115,28 @@ export function TicketsList({
       </div>
 
       {/* Tickets */}
-      {localTickets.map((ticket, index) => (
-        <SessionCard
-          key={ticket.id}
-          ticket={ticket}
-          onGenerateQR={onGenerateQR}
-          onDownload={onDownload}
-          onShare={onShare}
-          onViewQRCode={onViewQRCode}
-          generatingQR={generatingQR === ticket.id}
-        />
-      ))}
+      <div className="max-h-[600px] overflow-y-auto space-y-4 pr-2">
+  {localTickets.map((ticket, index) => (
+    <SessionCard
+      key={ticket.id}
+      ticket={ticket}
+      onGenerateQR={onGenerateQR}
+      onDownload={onDownload}
+      onShare={onShare}
+      onViewQRCode={onViewQRCode}
+      generatingQR={generatingQR === ticket.id}
+    />
+  ))}
+</div>
+
+{/* Indicador de scroll se houver muitos tickets */}
+{localTickets.length > 5 && (
+  <div className="text-center mt-4">
+    <p className="text-sm text-muted-foreground">
+      ↑ Role para ver mais bilhetes ↑
+    </p>
+  </div>
+)}
     </motion.div>
   );
 }

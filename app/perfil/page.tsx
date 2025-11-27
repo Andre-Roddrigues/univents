@@ -24,7 +24,7 @@ export default function ProfilePage() {
   const {
     loading,
     error,
-    apiTickets,
+    apiPayments,
     localTickets,
     summary,
     loadUserTickets,
@@ -85,16 +85,39 @@ export default function ProfilePage() {
     
     return new Promise((resolve) => {
       setTimeout(() => {
+        // Usar dados reais da API para o QR Code
         const qrData = JSON.stringify({
+          // Dados do Ticket
           ticketId: ticket.originalData.ticketId,
-          paymentId: ticket.originalData.paymentId,
+          ticketCode: ticket.ticketCode,
+          ticketType: ticket.ticketType,
+          validationCode: ticket.originalData.ticketUser?.code,
+          
+          // Dados do Evento (reais da API)
           eventId: ticket.originalData.eventId,
-          ticketType: ticket.originalData.type,
-          quantity: ticket.originalData.quantity,
+          eventName: ticket.eventName, // Nome real do evento
+          eventLocation: ticket.eventLocation, // Local real do evento
+          eventDate: ticket.eventDate, // Data real do evento
+          eventTime: ticket.eventTime,
+          eventProvince: ticket.originalData.event?.province,
+          
+          // Dados do Pagamento
+          paymentId: ticket.originalData.paymentId,
+          paymentReference: ticket.paymentReference,
+          paymentMethod: ticket.paymentMethod,
+          paymentStatus: ticket.paymentStatus,
           purchaseDate: ticket.originalData.paymentDate,
-          reference: ticket.paymentReference,
-          user: userData?.email || userData?.name || 'Usuário',
-          timestamp: new Date().toISOString()
+          price: ticket.price,
+          
+          // Dados do Usuário
+          userId: userData?.id,
+          userName: userData?.name || userData?.username,
+          userEmail: userData?.email,
+          
+          // Metadados
+          quantity: ticket.quantity,
+          timestamp: new Date().toISOString(),
+          source: 'EventosApp'
         });
 
         const qrCode = generateQRCode(qrData);
@@ -203,11 +226,11 @@ export default function ProfilePage() {
   // CALCULAR ESTATÍSTICAS
   // ================================
   const getFavoriteCategory = (): string => {
-    if (apiTickets.length === 0) return 'Geral';
+    if (localTickets.length === 0) return 'Geral';
     
-    const categories = apiTickets.reduce((acc, ticket) => {
-      const category = ticket.type.toLowerCase();
-      acc[category] = (acc[category] || 0) + ticket.quantity;
+    const categories = localTickets.reduce((acc, ticket) => {
+      const category = ticket.ticketType.toLowerCase();
+      acc[category] = (acc[category] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
@@ -219,11 +242,35 @@ export default function ProfilePage() {
     return favorite.category.charAt(0).toUpperCase() + favorite.category.slice(1);
   };
 
+  const getFavoriteEvent = (): string => {
+    if (localTickets.length === 0) return 'Nenhum';
+    
+    const events = localTickets.reduce((acc, ticket) => {
+      const eventName = ticket.eventName;
+      acc[eventName] = (acc[eventName] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const favorite = Object.entries(events).reduce((max, [eventName, count]) => 
+      count > max.count ? { eventName, count } : max, 
+      { eventName: 'Nenhum', count: 0 }
+    );
+
+    return favorite.eventName;
+  };
+
+  const getTotalEvents = (): number => {
+    const uniqueEvents = new Set(localTickets.map(ticket => ticket.eventName));
+    return uniqueEvents.size;
+  };
+
   const stats = {
     totalTickets: summary.totalTickets,
     upcomingEvents: localTickets.filter(t => t.status === 'active').length,
     totalSpent: summary.totalAmount,
-    favoriteCategory: getFavoriteCategory()
+    favoriteCategory: getFavoriteCategory(),
+    favoriteEvent: getFavoriteEvent(),
+    totalEvents: getTotalEvents()
   };
 
   // ================================
@@ -236,7 +283,7 @@ export default function ProfilePage() {
         <ProfileHeader userProfile={userProfile} />
 
         {/* Stats - Só mostra se houver bilhetes */}
-        {apiTickets.length > 0 && <Stats {...stats} />}
+        {localTickets.length > 0 && <Stats {...stats} />}
 
         {/* Tabs */}
         <div className="flex border-b border-border mb-8">
@@ -301,6 +348,7 @@ export default function ProfilePage() {
           isOpen={qrModalOpen}
           onClose={() => setQrModalOpen(false)}
           ticket={selectedTicket}
+          userData={userData}
           onDownload={() => selectedTicket && handleDownload(selectedTicket.id)}
           onShare={() => selectedTicket && handleShare(selectedTicket.id)}
           onGenerateQR={() => selectedTicket && handleGenerateQR(selectedTicket.id)}

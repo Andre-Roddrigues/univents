@@ -3,8 +3,10 @@
 import { motion } from 'framer-motion';
 import { Calendar, MapPin, Clock, Download, Share2, QrCode } from 'lucide-react';
 
+// Interface atualizada para refletir a estrutura real da API
 interface Ticket {
   id: string;
+  paymentReference: string | null;
   eventName: string;
   eventDate: string;
   eventTime: string;
@@ -16,6 +18,30 @@ interface Ticket {
   purchaseDate: string;
   status: 'active' | 'used' | 'pending' | 'cancelled';
   qrCode?: string;
+  paymentMethod: string;
+  paymentStatus: string;
+  originalData: {
+    paymentId: string;
+    ticketId: string;
+    eventId: string;
+    type: string;
+    quantity: number;
+    paymentDate: string;
+    ticketUser?: {
+      id: string;
+      userId: string;
+      ticketId: string;
+      code: string;
+    };
+    event?: {
+      id: string;
+      title: string;
+      description: string;
+      location: string;
+      img: string;
+      province: string;
+    };
+  };
 }
 
 interface SessionCardProps {
@@ -43,10 +69,22 @@ export default function SessionCard({
     });
   };
 
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-MZ', {
+      day: 'numeric',
+      month: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
       case 'used':
         return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
       case 'cancelled':
@@ -59,7 +97,9 @@ export default function SessionCard({
   const getStatusText = (status: string) => {
     switch (status) {
       case 'active':
-        return 'Ativo';
+        return 'Confirmado';
+      case 'pending':
+        return 'Pendente';
       case 'used':
         return 'Utilizado';
       case 'cancelled':
@@ -68,6 +108,22 @@ export default function SessionCard({
         return status;
     }
   };
+
+  const getPaymentMethodText = (method: string) => {
+    switch (method) {
+      case 'mpesa':
+        return 'M-Pesa';
+      case 'tranference':
+        return 'Transferência';
+      case 'card':
+        return 'Cartão';
+      default:
+        return method;
+    }
+  };
+
+  // Usar o código real do ticketUser se disponível
+  const displayTicketCode = ticket.originalData.ticketUser?.code || ticket.ticketCode;
 
   return (
     <motion.div
@@ -84,17 +140,26 @@ export default function SessionCard({
               <h3 className="text-xl font-semibold text-foreground mb-2">
                 {ticket.eventName}
               </h3>
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
-                {getStatusText(ticket.status)}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
+                  {getStatusText(ticket.status)}
+                </span>
+                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                  ticket.paymentStatus === 'confirmed' 
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+                }`}>
+                  {ticket.paymentStatus === 'confirmed' ? 'Pago' : 'Pagamento Pendente'}
+                </span>
+              </div>
             </div>
             
             <div className="text-right">
               <div className="text-2xl font-bold text-primary mb-1">
-                {ticket.ticketCode}
+                {displayTicketCode}
               </div>
               <div className="text-sm text-muted-foreground">
-                Código do Bilhete
+                {ticket.originalData.ticketUser ? 'Código do Ticket' : 'Código do Bilhete'}
               </div>
             </div>
           </div>
@@ -129,9 +194,28 @@ export default function SessionCard({
               <span className="font-medium">Quantidade:</span> {ticket.quantity}
             </div>
             <div>
-              <span className="font-medium">Comprado em:</span> {formatDate(ticket.purchaseDate)}
+              <span className="font-medium">Pagamento:</span> {getPaymentMethodText(ticket.paymentMethod)}
             </div>
+            <div>
+              <span className="font-medium">Comprado em:</span> {formatDateTime(ticket.originalData.paymentDate)}
+            </div>
+            {ticket.paymentReference && (
+              <div>
+                <span className="font-medium">Referência:</span> {ticket.paymentReference}
+              </div>
+            )}
           </div>
+
+          {/* Informação do código do ticketUser */}
+          {ticket.originalData.ticketUser && (
+            <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium text-primary">Código de Validação:</span>
+                <span className="font-mono font-bold">{ticket.originalData.ticketUser.code}</span>
+                <span className="text-xs text-muted-foreground">(Usado no QR Code)</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Actions */}
@@ -189,7 +273,7 @@ export default function SessionCard({
               {/* QR Code Image Original */}
               <img 
                 src={ticket.qrCode} 
-                alt={`QR Code do bilhete ${ticket.ticketCode}`}
+                alt={`QR Code do bilhete ${displayTicketCode}`}
                 className="w-48 h-48 mx-auto"
               />
             </div>
@@ -199,8 +283,13 @@ export default function SessionCard({
                 Apresente este código QR na entrada do evento
               </p>
               <p className="text-xs text-muted-foreground">
-                Código: <span className="font-mono font-medium">{ticket.ticketCode}</span>
+                Código: <span className="font-mono font-medium">{displayTicketCode}</span>
               </p>
+              {ticket.originalData.ticketUser && (
+                <p className="text-xs text-primary font-medium">
+                  Código de validação: {ticket.originalData.ticketUser.code}
+                </p>
+              )}
             </div>
 
             {/* Mini Actions */}

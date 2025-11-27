@@ -1,6 +1,6 @@
 // hooks/useTickets.ts
 import { useState, useEffect } from 'react';
-import { getUserTickets, type TicketInfo } from '@/lib/actions/user-tickets-actions';
+import { getUserTickets } from '@/lib/actions/user-tickets-actions';
 import { LocalTicket } from '@/components/profile/QrModdal';
 
 interface TicketSummary {
@@ -10,10 +10,70 @@ interface TicketSummary {
   totalAmount: number;
 }
 
+interface Payment {
+  id: string;
+  amount: number;
+  reference: string | null;
+  method: string;
+  status: string;
+  paymentDate: string;
+  itemName: string;
+  itemId: string;
+  entityId: string;
+  cart: {
+    id: string;
+    discount: null | number;
+    TotalPriceAftertDiscount: null | number;
+    totalPrice: number;
+    status: string;
+    userId: string;
+    cartItems: Array<{
+      id: string;
+      ticketId: string;
+      cartId: string;
+      price: number;
+      quantity: number;
+      TotalProductDiscount: null | number;
+      ticket: {
+        id: string;
+        name: string;
+        type: string;
+        price: number;
+        availableQuantity: number;
+        lastDayPayment: string;
+        status: string;
+        expiresAt: null | string;
+        eventId: string;
+        ticketUsers: Array<{
+          id: string;
+          userId: string;
+          ticketId: string;
+          code: string;
+        }>;
+        event: {
+          id: string;
+          title: string;
+          description: string;
+          location: string;
+          img: string;
+          province: string;
+          date?: string;
+        };
+      };
+    }>;
+  };
+}
+
+interface UserTicketResponse {
+  success: boolean;
+  payments?: Payment[];
+  message?: string;
+}
+
 export function useTickets(token: string | null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [apiTickets, setApiTickets] = useState<TicketInfo[]>([]);
+  const [apiPayments, setApiPayments] = useState<Payment[]>([]);
   const [localTickets, setLocalTickets] = useState<LocalTicket[]>([]);
   const [summary, setSummary] = useState<TicketSummary>({
     totalTickets: 0,
@@ -45,42 +105,116 @@ export function useTickets(token: string | null) {
       
       console.log('🎫 Carregando bilhetes do usuário...');
       
-      const result = await getUserTickets(token);
+      const result: UserTicketResponse = await getUserTickets(token);
       
-      if (result.success && result.tickets && result.tickets.length > 0) {
-        console.log('✅ Bilhetes carregados com sucesso:', result.tickets.length);
+      console.log('📦 Resposta da API:', result);
+      
+      if (result.success && result.payments && result.payments.length > 0) {
+        console.log('✅ Pagamentos carregados com sucesso:', result.payments.length);
         
-        setApiTickets(result.tickets);
+        setApiPayments(result.payments);
         
-        if (result.summary) {
-          setSummary(result.summary);
-        }
+        // Processar todos os tickets dos pagamentos
+        const allTickets: LocalTicket[] = [];
+        let totalTickets = 0;
+        let confirmedTickets = 0;
+        let pendingTickets = 0;
+        let totalAmount = 0;
+
+        result.payments.forEach((payment: Payment) => {
+          console.log('💳 Processando pagamento:', payment.id, 'Status:', payment.status);
+          console.log('🛒 Cart items:', payment.cart?.cartItems?.length);
+          
+          totalAmount += payment.amount;
+          
+          // Processar cada cartItem no carrinho
+          if (payment.cart && payment.cart.cartItems) {
+            payment.cart.cartItems.forEach((cartItem, itemIndex: number) => {
+              const ticket = cartItem.ticket;
+              const event = ticket.event;
+              
+              console.log('🎪 Evento:', event.title);
+              console.log('🎫 Ticket:', ticket.name, 'Quantidade:', cartItem.quantity);
+              
+              // Para cada quantidade, criar um ticket individual
+              for (let i = 0; i < cartItem.quantity; i++) {
+                totalTickets++;
+                
+                if (payment.status === 'confirmed') {
+                  confirmedTickets++;
+                } else if (payment.status === 'pending') {
+                  pendingTickets++;
+                }
+                
+                // Encontrar o código do ticket para este usuário específico
+                const ticketUser = ticket.ticketUsers?.find((tu) => 
+                  tu.userId === payment.entityId
+                );
+                
+                console.log('👤 Ticket User:', ticketUser);
+                
+                const ticketCode = ticketUser?.code || `TKT-${payment.id.slice(0, 8)}-${itemIndex}-${i}`;
+
+                // Usar dados reais do evento
+                // Se não houver data do evento, usar a data de pagamento como fallback
+                const eventDate = event.date || ticket.lastDayPayment || payment.paymentDate;
+                const eventTime = '20:00'; // Horário padrão
+
+                const localTicket: LocalTicket = {
+                  id: `${payment.id}-${ticket.id}-${itemIndex}-${i}`,
+                  paymentReference: payment.reference,
+                  eventName: event.title, // Nome real do evento
+                  eventDate: new Date(eventDate).toLocaleDateString('pt-MZ'), // Data do evento
+                  eventTime: eventTime,
+                  eventLocation: event.location, // Local real do evento
+                  ticketCode: ticketCode,
+                  quantity: 1, // Cada ticket é individual
+                  ticketType: ticket.name, // Nome do tipo de ticket (VIP, Normal, etc.)
+                  price: cartItem.price,
+                  purchaseDate: new Date(payment.paymentDate).toLocaleDateString('pt-MZ'),
+                  status: getTicketStatus(payment.status),
+                  qrCode: '',
+                  paymentMethod: payment.method,
+                  paymentStatus: payment.status,
+                  originalData: {
+                    paymentId: payment.id,
+                    ticketId: ticket.id,
+                    eventId: event.id,
+                    type: ticket.type,
+                    quantity: cartItem.quantity,
+                    paymentDate: payment.paymentDate,
+                    ticketUser: ticketUser,
+                    event: event // Dados completos do evento
+                  }
+                };
+
+                console.log('✅ Ticket criado:', localTicket.eventName);
+                allTickets.push(localTicket);
+              }
+            });
+          }
+        });
+
+        setSummary({
+          totalTickets,
+          confirmedTickets,
+          pendingTickets,
+          totalAmount
+        });
+
+        setLocalTickets(allTickets);
         
-        // Converter para o formato local (sem QR Codes inicialmente)
-        const convertedTickets: LocalTicket[] = result.tickets.map((ticket, index) => ({
-          id: `${ticket.paymentId}-${ticket.ticketId}-${index}`,
-          paymentReference: ticket.paymentReference,
-          eventName: `Evento - ${ticket.name}`,
-          eventDate: new Date(ticket.paymentDate).toLocaleDateString('pt-MZ'),
-          eventTime: '20:00',
-          eventLocation: 'Local do Evento',
-          ticketCode: ticket.paymentReference || `TKT-${ticket.ticketId.slice(0, 8).toUpperCase()}`,
-          ticketType: ticket.type.toUpperCase(),
-          quantity: ticket.quantity ?? 1,
-          price: ticket.totalPrice,
-          purchaseDate: new Date(ticket.paymentDate).toLocaleDateString('pt-MZ'),
-          status: getTicketStatus(ticket.paymentStatus),
-          qrCode: '', // Inicialmente vazio - será gerado sob demanda
-          paymentMethod: ticket.paymentMethod,
-          paymentStatus: ticket.paymentStatus,
-          originalData: ticket
-        }));
-        
-        setLocalTickets(convertedTickets);
+        console.log('📊 Resumo final:', {
+          totalTickets,
+          confirmedTickets,
+          pendingTickets,
+          totalAmount,
+          ticketsCount: allTickets.length
+        });
         
       } else if (result.success) {
-        console.log('ℹ️ Nenhum bilhete encontrado');
-        setApiTickets([]);
+        console.log('ℹ️ Nenhum pagamento encontrado na resposta');
+        setApiPayments([]);
         setLocalTickets([]);
         setSummary({
           totalTickets: 0,
@@ -89,7 +223,7 @@ export function useTickets(token: string | null) {
           totalAmount: 0
         });
       } else {
-        console.error('❌ Erro ao carregar bilhetes:', result.message);
+        console.error('❌ Erro na resposta da API:', result.message);
         setError(result.message || 'Erro ao carregar bilhetes');
         setLocalTickets([]);
       }
@@ -117,7 +251,7 @@ export function useTickets(token: string | null) {
   return {
     loading,
     error,
-    apiTickets,
+    apiPayments,
     localTickets,
     summary,
     loadUserTickets,

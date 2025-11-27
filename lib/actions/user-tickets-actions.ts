@@ -37,116 +37,34 @@ export interface UserTicketResponse {
   };
 }
 
-export async function getUserTickets(token: string): Promise<UserTicketResponse> {
+// lib/actions/user-tickets-actions.ts
+export async function getUserTickets(token: string): Promise<any> {
   try {
-    if (!token) {
-      return { 
-        success: false, 
-        tickets: [],
-        message: "Token de autenticação não fornecido" 
-      };
-    }
-
-    console.log("🎫 Buscando tickets do usuário...");
-
+    console.log('🔐 Fazendo request com token:', token ? 'Token presente' : 'Token ausente');
+    
     const response = await fetch(routes.payments_user_list, {
-      method: "GET",
+      method: 'GET',
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
       },
-      cache: "no-store"
     });
 
+    console.log('📡 Response status:', response.status);
+    
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ Erro HTTP ${response.status}:`, errorText);
-      
-      return { 
-        success: false, 
-        tickets: [],
-        message: `Erro ao buscar tickets: ${response.status}` 
-      };
+      throw new Error(`Erro HTTP: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log("✅ Resposta da API recebida");
-
-    if (!data?.payments) {
-      return { 
-        success: false, 
-        tickets: [],
-        message: "Formato de resposta inválido" 
-      };
-    }
-
-    // Filtrar apenas pagamentos válidos para tickets
-    const validPayments = data.payments.filter(
-      (p: any) => p.method && p.itemName === "tickets" && p.cart?.cartItems
-    );
-
-    console.log(`📊 ${validPayments.length} pagamentos válidos encontrados`);
-
-    // Processar tickets
-    const tickets: TicketInfo[] = validPayments.flatMap((payment: any) =>
-      payment.cart.cartItems.map((item: any) => {
-        const unitPrice = item.ticket?.price || 0;
-        const quantity = item.quantity || 1;
-        const totalPrice = unitPrice * quantity;
-        const isConfirmed = payment.status === "confirmed";
-        const isPending = payment.status === "pending";
-
-        return {
-          // Dados do bilhete
-          ticketId: item.ticket?.id || 'unknown',
-          name: item.ticket?.name || 'Bilhete sem nome',
-          type: item.ticket?.type || 'standard',
-          unitPrice: unitPrice,
-          quantity: quantity,
-          eventId: item.ticket?.eventId || 'unknown',
-
-          // Dados do pagamento
-          paymentId: payment.id,
-          paymentMethod: payment.method,
-          paymentStatus: payment.status,
-          paymentDate: payment.paymentDate,
-          paymentReference: payment.reference,
-          paymentAmount: payment.amount,
-
-          // Dados calculados
-          totalPrice: totalPrice,
-          isConfirmed: isConfirmed,
-          isPending: isPending
-        };
-      })
-    );
-
-    // Calcular resumo
-    const summary = {
-      totalTickets: tickets.reduce((sum, ticket) => sum + ticket.quantity, 0),
-      confirmedTickets: tickets
-        .filter(ticket => ticket.isConfirmed)
-        .reduce((sum, ticket) => sum + ticket.quantity, 0),
-      pendingTickets: tickets
-        .filter(ticket => ticket.isPending)
-        .reduce((sum, ticket) => sum + ticket.quantity, 0),
-      totalAmount: tickets.reduce((sum, ticket) => sum + ticket.totalPrice, 0)
-    };
-
-    console.log(`🎯 ${tickets.length} tickets processados`);
-    console.log(`📈 Resumo:`, summary);
-
-    return { 
-      success: true, 
-      tickets,
-      summary
-    };
+    console.log('📦 Dados recebidos:', data);
+    
+    return data;
   } catch (error) {
-    console.error("💥 Erro ao buscar tickets:", error);
-    return { 
-      success: false, 
-      tickets: [],
-      message: "Erro de conexão com o servidor" 
+    console.error('💥 Erro ao buscar tickets do usuário:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Erro desconhecido'
     };
   }
 }
