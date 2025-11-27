@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Clock, Mail, Home, Ticket } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+export const dynamic = "force-dynamic";
 
 export default function PaymentPendingPage() {
   const searchParams = useSearchParams();

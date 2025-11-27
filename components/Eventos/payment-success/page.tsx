@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { CheckCircle, Download, Mail, Ticket } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+export const dynamic = "force-dynamic";
 
 export default function PaymentSuccessPage() {
   const searchParams = useSearchParams();
