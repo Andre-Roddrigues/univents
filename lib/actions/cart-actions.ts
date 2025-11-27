@@ -117,7 +117,43 @@ export async function getCartById(cartId: string) {
     return { success: false, message: String(error) };
   }
 }
+// =====================================
+// GET CART -> GET /carts/:id
+// =====================================
+export async function getCart(cartId: string) {
+  try {
+    const token = getToken();
 
+    const response = await axios.get(`${routes.carts}/${cartId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    console.log('📦 Resposta da API getCart:', response.data);
+
+    // Verificar diferentes formatos de resposta
+    const cartData = response.data?.cart || response.data?.data?.cart || response.data;
+
+    return {
+      success: true,
+      cart: cartData,
+      status: response.status,
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error('❌ Erro na API getCart:', error.response?.data);
+      return {
+        success: false,
+        status: error.response?.status ?? 500,
+        message:
+          error.response?.data?.message ||
+          "Erro ao buscar detalhes do carrinho.",
+      };
+    }
+    return { success: false, message: String(error) };
+  }
+}
 // =====================================
 // UPDATE CART -> PUT /carts/:id
 // =====================================

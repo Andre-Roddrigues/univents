@@ -10,11 +10,14 @@ import {
   CheckCircle,
   Upload,
   Loader,
-  Ticket
+  Ticket,
+  Check,
+  X
 } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createPayment, createTransferPayment } from '@/lib/actions/payment-actions';
+import { listCarts } from '@/lib/actions/cart-actions';
 import { toast } from 'sonner';
 
 interface CartItem {
@@ -31,6 +34,7 @@ interface Cart {
   totalPriceAftertDiscount: number | null;
   totalPrice: number;
   userId: string;
+  status: 'pending' | 'paid' | 'canceled';
   cartItems: CartItem[];
 }
 
@@ -94,37 +98,38 @@ export default function CheckoutPage() {
       setLoading(true);
       setError(null);
       
-      // Simular carregamento da API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('🛒 Carregando carrinho específico:', cartId);
       
-      // Mock data baseado na estrutura real
-      const mockCart: Cart = {
-        id: cartId,
-        discount: null,
-        totalPriceAftertDiscount: null,
-        totalPrice: 125000,
-        userId: 'user-id',
-        cartItems: [
-          {
-            id: '83558db2-9f8a-4aef-9944-1e46cd7575fc',
-            ticketId: '74991e45-79af-44b8-86c2-8df395c76079',
-            quantity: 34,
-            price: 5000,
-            totalProductDiscount: null
-          },
-          {
-            id: '4a938185-aa6e-4890-99a2-6c54489834d2',
-            ticketId: '74991e45-79af-44b8-86c2-8df395c76080',
-            quantity: 10,
-            price: 9000,
-            totalProductDiscount: null
+      // Usar listCarts e filtrar pelo cartId específico
+      const result = await listCarts();
+      
+      console.log('📦 Resposta da API:', result);
+      
+      if (result.success && Array.isArray(result.carts)) {
+        // Encontrar o carrinho específico pelo ID
+        const foundCart = result.carts.find((c: Cart) => c.id === cartId);
+        
+        if (foundCart) {
+          console.log('✅ Carrinho encontrado:', foundCart);
+          
+          // Verificar se o carrinho está pending
+          if (foundCart.status !== 'pending') {
+            setError(`Este carrinho já foi ${foundCart.status === 'paid' ? 'pago' : 'cancelado'}`);
+            setCart(foundCart);
+            return;
           }
-        ]
-      };
-      
-      setCart(mockCart);
+          
+          setCart(foundCart);
+        } else {
+          console.error('❌ Carrinho não encontrado');
+          setError('Carrinho não encontrado');
+        }
+      } else {
+        console.error('❌ Erro ao carregar carrinhos:', result.message);
+        setError(result.message || 'Erro ao carregar carrinho');
+      }
     } catch (err) {
-      console.error('Erro ao carregar carrinho:', err);
+      console.error('💥 Erro ao carregar carrinho:', err);
       setError('Erro ao carregar carrinho');
     } finally {
       setLoading(false);
@@ -249,8 +254,15 @@ export default function CheckoutPage() {
     console.log('🛒 Iniciando processo de pagamento:', {
       method: selectedPayment,
       cartId: cart.id,
-      total: cart.totalPrice
+      total: cart.totalPrice,
+      status: cart.status
     });
+
+    // Verificar novamente se o carrinho ainda está pending
+    if (cart.status !== 'pending') {
+      toast.error('Este carrinho já foi processado');
+      return;
+    }
 
     if (selectedPayment === 'mpesa') {
       await processMpesaPayment();
@@ -272,8 +284,336 @@ export default function CheckoutPage() {
     return { name: `Bilhete ${ticketId.slice(0, 8)}`, type: "standard" };
   };
 
-  // ... restante do código do componente (loading, error, JSX) permanece igual
-  // (mantenha todo o JSX do componente que você já tinha)
+  // Renderizar estado do carrinho baseado no status
+  const renderCartStatus = () => {
+    if (!cart) return null;
+
+    // Verificar se cartItems existe e é um array
+    if (!cart.cartItems || !Array.isArray(cart.cartItems)) {
+      return (
+        <div className="text-center py-12">
+          <CreditCard className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-foreground mb-2">
+            Erro no carrinho
+          </h3>
+          <p className="text-muted-foreground mb-6">
+            Os dados do carrinho estão incompletos.
+          </p>
+          <Link
+            href="/carrinho"
+            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+          >
+            Voltar ao Carrinho
+          </Link>
+        </div>
+      );
+    }
+
+    switch (cart.status) {
+      case 'paid':
+        return (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-10 h-10 text-green-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-green-600 mb-2">Compra Finalizada</h3>
+            <p className="text-muted-foreground mb-6">
+              Este carrinho já foi pago e processado com sucesso.
+            </p>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 max-w-md mx-auto">
+              <div className="flex justify-between mb-2">
+                <span className="font-medium">Total Pago:</span>
+                <span className="font-bold">{formatCurrency(cart.totalPrice)}</span>
+              </div>
+              <div className="text-sm text-green-700">
+                ID do Carrinho: {cart.id}
+              </div>
+            </div>
+            <div className="mt-8 space-y-4">
+              <Link
+                href="/meus-bilhetes"
+                className="inline-block px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+              >
+                Ver Meus Bilhetes
+              </Link>
+              <div>
+                <Link
+                  href="/eventos"
+                  className="text-primary hover:underline"
+                >
+                  Continuar a explorar eventos
+                </Link>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'canceled':
+        return (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <X className="w-10 h-10 text-red-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-red-600 mb-2">Compra Cancelada</h3>
+            <p className="text-muted-foreground mb-6">
+              Este carrinho foi cancelado e não está mais disponível para pagamento.
+            </p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md mx-auto">
+              <div className="flex justify-between mb-2">
+                <span className="font-medium">Valor:</span>
+                <span className="font-bold">{formatCurrency(cart.totalPrice)}</span>
+              </div>
+              <div className="text-sm text-red-700">
+                ID do Carrinho: {cart.id}
+              </div>
+            </div>
+            <div className="mt-8 space-y-4">
+              <Link
+                href="/eventos"
+                className="inline-block px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+              >
+                Explorar Eventos
+              </Link>
+              <div>
+                <Link
+                  href="/carrinho"
+                  className="text-primary hover:underline"
+                >
+                  Voltar ao carrinho
+                </Link>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'pending':
+      default:
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+          >
+            {/* Coluna Esquerda - Resumo do Pedido */}
+            <div className="lg:col-span-2">
+              <div className="space-y-6">
+                {/* Cabeçalho */}
+                <div>
+                  <h1 className="text-3xl font-bold text-foreground mb-2">
+                    Finalizar Compra
+                  </h1>
+                  <p className="text-muted-foreground">
+                    Complete seu pedido escolhendo o método de pagamento
+                  </p>
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    ID do Carrinho: <span className="font-mono">{cartId}</span>
+                  </div>
+                  <div className="mt-1">
+                    <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                      PENDING
+                    </span>
+                  </div>
+                </div>
+
+                {/* Resumo do Pedido */}
+                <div className="bg-card border border-border rounded-xl p-6">
+                  <h2 className="text-xl font-semibold text-foreground mb-4">
+                    Resumo do Pedido
+                  </h2>
+                  
+                  <div className="space-y-4">
+                    {cart.cartItems && cart.cartItems.length > 0 ? (
+                      cart.cartItems.map((item, index) => {
+                        const ticketInfo = getTicketDisplayInfo(item.price, item.ticketId);
+                        
+                        return (
+                          <div key={item.id} className="flex gap-4 pb-4 border-b border-border last:border-0">
+                            <div className="flex-shrink-0">
+                              <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center">
+                                <Ticket className="w-8 h-8 text-primary" />
+                              </div>
+                            </div>
+                            
+                            <div className="flex-1">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <h3 className="font-semibold text-foreground mb-1">
+                                    {ticketInfo.name}
+                                  </h3>
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-xs px-2 py-1 rounded-full ${
+                                      ticketInfo.type === 'vip' 
+                                        ? 'bg-purple-100 text-purple-800' 
+                                        : ticketInfo.type === 'normal'
+                                        ? 'bg-blue-100 text-blue-800'
+                                        : 'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {ticketInfo.type.toUpperCase()}
+                                    </span>
+                                    <span className="text-sm text-muted-foreground">
+                                      {item.quantity} × {formatCurrency(item.price)}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <div className="text-right">
+                                  <div className="font-semibold text-foreground">
+                                    {formatCurrency(item.price * item.quantity)}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-8">
+                        <Ticket className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">Nenhum item no carrinho</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Total */}
+                  <div className="border-t border-border pt-4 mt-4">
+                    <div className="flex justify-between items-center text-lg font-bold text-foreground">
+                      <span>Total</span>
+                      <span>{formatCurrency(cart.totalPrice)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Coluna Direita - Pagamento (APENAS PARA PENDING) */}
+            <div className="lg:col-span-1">
+              <div className="sticky top-8 space-y-6">
+                {/* Método de Pagamento */}
+                <div className="bg-card border border-border rounded-xl p-6">
+                  <h2 className="text-xl font-semibold text-foreground mb-4">
+                    Método de Pagamento
+                  </h2>
+                  
+                  <div className="space-y-3 mb-6">
+                    {paymentMethods.map((method) => (
+                      <div
+                        key={method.id}
+                        className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                          selectedPayment === method.id
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                        onClick={() => setSelectedPayment(method.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <method.icon className="w-5 h-5 text-primary" />
+                          <div className="flex-1">
+                            <div className="font-medium text-foreground">{method.name}</div>
+                            <div className="text-sm text-muted-foreground">{method.description}</div>
+                          </div>
+                          {selectedPayment === method.id && (
+                            <CheckCircle className="w-5 h-5 text-primary" />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Campos específicos por método */}
+                  {selectedPayment === 'mpesa' && (
+                    <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
+                      <h3 className="font-medium text-foreground">Pagamento via M-Pesa</h3>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {paymentMethods.find(m => m.id === 'mpesa')?.instructions}
+                      </p>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                          Número de Telefone M-Pesa
+                        </label>
+                        <input
+                          type="tel"
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          placeholder="84 123 4567"
+                          className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedPayment === 'transfer' && (
+                    <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
+                      <h3 className="font-medium text-foreground">Transferência Bancária</h3>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {paymentMethods.find(m => m.id === 'transfer')?.instructions}
+                      </p>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                          Comprovativo de Transferência
+                        </label>
+                        <div className="border-2 border-dashed border-border rounded-lg p-4 text-center">
+                          <input
+                            type="file"
+                            id="proof-upload"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                          />
+                          <label
+                            htmlFor="proof-upload"
+                            className="cursor-pointer flex flex-col items-center gap-2"
+                          >
+                            <Upload className="w-8 h-8 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">
+                              {proofImage ? proofImage.name : 'Clique para fazer upload'}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              PNG, JPG (max 5MB)
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Botão de Pagamento (APENAS PARA PENDING) */}
+                <button
+                  onClick={handlePayment}
+                  disabled={processing || uploading || 
+                    (selectedPayment === 'mpesa' && !phoneNumber) ||
+                    (selectedPayment === 'transfer' && !proofImage)}
+                  className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-bold text-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  {processing || uploading ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      {selectedPayment === 'mpesa' ? 'Processando...' : 'Enviando...'}
+                    </>
+                  ) : (
+                    `Pagar ${formatCurrency(cart.totalPrice)}`
+                  )}
+                </button>
+
+                {/* Garantias */}
+                <div className="text-center space-y-2">
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <Shield className="w-4 h-4" />
+                    Pagamento 100% seguro
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Sua transação está protegida
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        );
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -285,7 +625,7 @@ export default function CheckoutPage() {
     );
   }
 
-  if (error || !cart) {
+  if (error && !cart) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -323,215 +663,7 @@ export default function CheckoutPage() {
       </div>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-1 lg:grid-cols-3 gap-8"
-        >
-          {/* Coluna Esquerda - Resumo do Pedido */}
-          <div className="lg:col-span-2">
-            <div className="space-y-6">
-              {/* Cabeçalho */}
-              <div>
-                <h1 className="text-3xl font-bold text-foreground mb-2">
-                  Finalizar Compra
-                </h1>
-                <p className="text-muted-foreground">
-                  Complete seu pedido escolhendo o método de pagamento
-                </p>
-                <div className="mt-2 text-sm text-muted-foreground">
-                  ID do Carrinho: <span className="font-mono">{cartId}</span>
-                </div>
-              </div>
-
-              {/* Resumo do Pedido */}
-              <div className="bg-card border border-border rounded-xl p-6">
-                <h2 className="text-xl font-semibold text-foreground mb-4">
-                  Resumo do Pedido
-                </h2>
-                
-                <div className="space-y-4">
-                  {cart.cartItems.map((item, index) => {
-                    const ticketInfo = getTicketDisplayInfo(item.price, item.ticketId);
-                    
-                    return (
-                      <div key={item.id} className="flex gap-4 pb-4 border-b border-border last:border-0">
-                        <div className="flex-shrink-0">
-                          <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center">
-                            <Ticket className="w-8 h-8 text-primary" />
-                          </div>
-                        </div>
-                        
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h3 className="font-semibold text-foreground mb-1">
-                                {ticketInfo.name}
-                              </h3>
-                              <div className="flex items-center gap-2">
-                                <span className={`text-xs px-2 py-1 rounded-full ${
-                                  ticketInfo.type === 'vip' 
-                                    ? 'bg-purple-100 text-purple-800' 
-                                    : ticketInfo.type === 'normal'
-                                    ? 'bg-blue-100 text-blue-800'
-                                    : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {ticketInfo.type.toUpperCase()}
-                                </span>
-                                <span className="text-sm text-muted-foreground">
-                                  {item.quantity} × {formatCurrency(item.price)}
-                                </span>
-                              </div>
-                            </div>
-                            
-                            <div className="text-right">
-                              <div className="font-semibold text-foreground">
-                                {formatCurrency(item.price * item.quantity)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Total */}
-                <div className="border-t border-border pt-4 mt-4">
-                  <div className="flex justify-between items-center text-lg font-bold text-foreground">
-                    <span>Total</span>
-                    <span>{formatCurrency(cart.totalPrice)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Coluna Direita - Pagamento */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-8 space-y-6">
-              {/* Método de Pagamento */}
-              <div className="bg-card border border-border rounded-xl p-6">
-                <h2 className="text-xl font-semibold text-foreground mb-4">
-                  Método de Pagamento
-                </h2>
-                
-                <div className="space-y-3 mb-6">
-                  {paymentMethods.map((method) => (
-                    <div
-                      key={method.id}
-                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                        selectedPayment === method.id
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                      onClick={() => setSelectedPayment(method.id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <method.icon className="w-5 h-5 text-primary" />
-                        <div className="flex-1">
-                          <div className="font-medium text-foreground">{method.name}</div>
-                          <div className="text-sm text-muted-foreground">{method.description}</div>
-                        </div>
-                        {selectedPayment === method.id && (
-                          <CheckCircle className="w-5 h-5 text-primary" />
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Campos específicos por método */}
-                {selectedPayment === 'mpesa' && (
-                  <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
-                    <h3 className="font-medium text-foreground">Pagamento via M-Pesa</h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {paymentMethods.find(m => m.id === 'mpesa')?.instructions}
-                    </p>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">
-                        Número de Telefone M-Pesa
-                      </label>
-                      <input
-                        type="tel"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        placeholder="84 123 4567"
-                        className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {selectedPayment === 'transfer' && (
-                  <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
-                    <h3 className="font-medium text-foreground">Transferência Bancária</h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {paymentMethods.find(m => m.id === 'transfer')?.instructions}
-                    </p>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">
-                        Comprovativo de Transferência
-                      </label>
-                      <div className="border-2 border-dashed border-border rounded-lg p-4 text-center">
-                        <input
-                          type="file"
-                          id="proof-upload"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="hidden"
-                        />
-                        <label
-                          htmlFor="proof-upload"
-                          className="cursor-pointer flex flex-col items-center gap-2"
-                        >
-                          <Upload className="w-8 h-8 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">
-                            {proofImage ? proofImage.name : 'Clique para fazer upload'}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            PNG, JPG (max 5MB)
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Botão de Pagamento */}
-              <button
-                onClick={handlePayment}
-                disabled={processing || uploading || 
-                  (selectedPayment === 'mpesa' && !phoneNumber) ||
-                  (selectedPayment === 'transfer' && !proofImage)}
-                className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-bold text-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
-              >
-                {processing || uploading ? (
-                  <>
-                    <Loader className="w-5 h-5 animate-spin" />
-                    {selectedPayment === 'mpesa' ? 'Processando...' : 'Enviando...'}
-                  </>
-                ) : (
-                  `Pagar ${formatCurrency(cart.totalPrice)}`
-                )}
-              </button>
-
-              {/* Garantias */}
-              <div className="text-center space-y-2">
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Shield className="w-4 h-4" />
-                  Pagamento 100% seguro
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Sua transação está protegida
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
+        {renderCartStatus()}
       </div>
     </div>
   );
