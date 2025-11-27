@@ -7,7 +7,7 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (
-    (pathname.startsWith("/checkout") || pathname.startsWith("/user")) &&
+    (pathname.startsWith("/checkout") || pathname.startsWith("/perfil")) &&
     !session
   ) {
     const loginUrl = new URL("/login", req.url);
