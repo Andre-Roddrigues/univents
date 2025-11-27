@@ -12,11 +12,14 @@ export const routes = {
   resend_otp: `${API_BASE_URL}/resendotpuser`,
   request_password_recovery: `${API_BASE_URL}/request-password-recovery`,
   reset_password: `${API_BASE_URL}/reset-password`,
-
+  payments_transference_create: `${API_BASE_URL}/payments/transference/create`,
   carts: `${API_BASE_URL}/carts`,
-
-
+  payments_transfer_proof: `${API_BASE_URL}/payments/transfer-proof`,
+  payments_create: `${API_BASE_URL}/payments/create`,
   deliveries: `${API_BASE_URL}/deliveries`,
+  payments_list: `${API_BASE_URL}/payments/list`,
+  payments_user_list: `${API_BASE_URL}/payments/list-user-payments`,
+  payments: `${API_BASE_URL}/payments`,
   payment_mpesa: API_MPESA,
   carts_create: `${API_BASE_URL}/carts/create`,
   carts_list: `${API_BASE_URL}/carts/list-user-carts`,

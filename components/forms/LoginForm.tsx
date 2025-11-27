@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Mail, Lock } from "lucide-react";
 import { login } from "@/lib/actions/auth-actions";
 import { useForm } from "react-hook-form";
@@ -15,8 +15,14 @@ import Link from "next/link";
 
 export default function LoginForm() {
   const router = useRouter();
-  const redirectUrl =
-    new URL(window.location.href).searchParams.get("redirect") || "/eventos";
+  const [redirectUrl, setRedirectUrl] = useState("/eventos");
+
+  // Pega redirect da URL
+  useEffect(() => {
+    const params = new URL(window.location.href).searchParams;
+    const redirectParam = params.get("redirect");
+    if (redirectParam) setRedirectUrl(redirectParam);
+  }, []);
 
   const {
     register,
@@ -28,31 +34,36 @@ export default function LoginForm() {
 
   const handleLogin = async (data: LoginSchema) => {
     try {
-      // Backend espera 'identifier' em vez de 'email'
       const response = await login(data.identifier, data.password);
 
       if (!response?.success) {
         toast.error("Erro ao fazer login", {
-          description: response?.message,
+          description: response?.message ?? "Credenciais inválidas",
         });
-        console.log("Erro", response?.message);
         return;
       }
 
-      // Pegar dados do usuário
-      const user = response.data;
-      const name = user.name;
-      const role = user.lastname || user.role || ""; // pega role ou sobrenome se quiser
+      // 👉 Dados vêm em response.userData (segundo a resposta que você enviou)
+      const user = response.userData;
 
-      // Toast personalizado
-      toast.success(`Bem-vindo ${name}`, { description: `Role: ${user.role}` });
-
-      // Redirecionamento
-      if (user.role === "admin") {
-        router.push("/eventos/dashboard"); // apenas admin
-      } else {
-        router.push(redirectUrl); // outros roles
+      if (!user) {
+        throw new Error("userData não encontrado na resposta do servidor.");
       }
+
+      const fullName = `${user.name ?? ""} ${user.lastname ?? ""}`.trim();
+
+      // Toaster
+      toast.success(`Bem-vindo, ${fullName}!`, {
+        description: `Role: ${user.role ?? "usuário"}`,
+      });
+
+      // Redirecionamento baseado no role
+      if (user.role === "admin") {
+        router.push("/eventos/dashboard");
+      } else {
+        router.push(redirectUrl);
+      }
+
     } catch (error) {
       console.error("Erro inesperado ao tentar fazer login.", error);
       toast.error("Erro inesperado ao tentar fazer login.");

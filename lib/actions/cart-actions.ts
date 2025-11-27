@@ -16,7 +16,7 @@ export interface CreateCartPayload {
 
 // Função auxiliar para pegar token do cookie
 function getToken() {
-  return cookies().get("token")?.value || "";
+  return cookies().get("session")?.value || "";
 }
 
 // =====================================

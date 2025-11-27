@@ -34,7 +34,7 @@ const Navbar = () => {
   const checkAuthToken = () => {
     const hasAuthToken = document.cookie
       .split("; ")
-      .find((row) => row.startsWith("token="));
+      .find((row) => row.startsWith("session="));
     return !!hasAuthToken;
   };
 

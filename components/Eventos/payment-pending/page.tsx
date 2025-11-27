@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Clock, Mail, Home } from 'lucide-react';
+import { Clock, Mail, Home, Ticket } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -31,10 +31,10 @@ export default function PaymentPendingPage() {
           </p>
 
           <div className="space-y-3 mb-6 text-sm text-left bg-muted/30 p-4 rounded-lg">
-            <div className="flex justify-between">
+            {/* <div className="flex justify-between">
               <span className="text-muted-foreground">ID do Pedido:</span>
               <span className="font-medium text-foreground">{cartId}</span>
-            </div>
+            </div> */}
             <div className="flex justify-between">
               <span className="text-muted-foreground">Método:</span>
               <span className="font-medium text-foreground capitalize">{method}</span>
@@ -46,11 +46,12 @@ export default function PaymentPendingPage() {
           </div>
 
           <div className="space-y-3">
+            <Link href="/perfil" >
             <button className="w-full py-2 px-4 border border-border text-foreground rounded-lg hover:bg-muted transition-colors flex items-center justify-center gap-2">
-              <Mail className="w-4 h-4" />
-              Contactar Suporte
+              <Ticket className="w-4 h-4" />
+              Meus Bilhetes
             </button>
-            
+            </Link>
             <Link
               href="/eventos"
               className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"

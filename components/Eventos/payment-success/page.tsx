@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, Download, Mail } from 'lucide-react';
+import { CheckCircle, Download, Mail, Ticket } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -27,13 +27,13 @@ export default function PaymentSuccessPage() {
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          
+
           <h1 className="text-2xl font-bold text-foreground mb-2">
             Pagamento Confirmado!
           </h1>
-          
+
           <p className="text-muted-foreground mb-6">
-            Seu pagamento foi processado com sucesso. Os bilhetes foram enviados para o seu email.
+            Seu pagamento foi processado com sucesso. Podes fazer a gestão dos seus bilhetes no seu <Link href="/perfil" className="underline">perfil</Link>.
           </p>
 
           <div className="space-y-4 mb-8">
@@ -41,21 +41,19 @@ export default function PaymentSuccessPage() {
               <span className="text-muted-foreground">Método:</span>
               <span className="font-medium text-foreground capitalize">{method}</span>
             </div>
-            <div className="flex justify-between text-sm">
+            {/* <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">ID do Pedido:</span>
               <span className="font-medium text-foreground">{cartId}</span>
-            </div>
+            </div> */}
           </div>
 
           <div className="flex gap-3 mb-6">
-            <button className="flex-1 py-2 px-4 border border-border text-foreground rounded-lg hover:bg-muted transition-colors flex items-center justify-center gap-2">
-              <Download className="w-4 h-4" />
-              Bilhetes
-            </button>
-            <button className="flex-1 py-2 px-4 border border-border text-foreground rounded-lg hover:bg-muted transition-colors flex items-center justify-center gap-2">
-              <Mail className="w-4 h-4" />
-              Reenviar
-            </button>
+            <Link href="/perfil" >
+              <button className="w-full py-2 px-4 border border-border text-foreground rounded-lg hover:bg-muted transition-colors flex items-center justify-center gap-2">
+                <Ticket className="w-4 h-4" />
+                Meus Bilhetes
+              </button>
+            </Link>
           </div>
 
           <Link

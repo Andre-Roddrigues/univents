@@ -56,9 +56,19 @@ export async function verifyOTP(email: string, otp: string) {
   try {
     const response = await axios.patch(routes.verify_otp, { otp, email });
 
-    // Guardar token no cookie
     if (response.status === 200 && response.data?.token) {
-      cookies().set("token", response.data.token, {
+      const token = response.data.token;
+
+      // Salva em "session"
+      cookies().set("session", token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        path: "/",
+      });
+
+      // Salva também em "token"
+      cookies().set("token", token, {
         httpOnly: true,
         secure: true,
         sameSite: "strict",
@@ -78,16 +88,23 @@ export async function verifyOTP(email: string, otp: string) {
 // =============================
 // LOGIN
 // =============================
-// =============================
-// LOGIN
-// =============================
 export async function login(identifier: string, password: string) {
   try {
     const response = await axios.post(routes.login, { identifier, password });
 
     if (response.status === 200 && response.data.token) {
-      // Salva token no cookie
-      cookies().set("token", response.data.token, {
+      const token = response.data.token;
+
+      // Salva em "session"
+      cookies().set("session", token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        path: "/",
+      });
+
+      // Salva também em "token"
+      cookies().set("token", token, {
         httpOnly: true,
         secure: true,
         sameSite: "strict",
@@ -95,7 +112,7 @@ export async function login(identifier: string, password: string) {
       });
     }
 
-    return response.data; // { success, message, userData, token }
+    return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       return {
@@ -126,5 +143,6 @@ export async function resend_OTP(email: string) {
 // LOGOUT
 // =============================
 export async function logout() {
+  cookies().delete("session");
   cookies().delete("token");
 }

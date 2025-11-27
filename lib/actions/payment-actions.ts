@@ -1,146 +1,387 @@
 "use server";
 
+import { cookies } from "next/headers";
+import axios from "axios";
 import { routes } from "@/config/routes";
-import { getErrorMessage } from "../utils";
-import { DeliveryFee } from "@/types/types";
 
-export async function getAllDeliveries() {
-  try {
-    const response = await fetch(routes.deliveries, {
-      next: { revalidate: 300 },
-    });
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: "Erro ao carregar localizações de entrega",
-        status: response.status,
-      };
-    }
-
-    const data: DeliveryFee[] = await response.json();
-    data.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
-
-    return { success: true, deliviryFees: data, status: response.status };
-  } catch (error: unknown) {
-    return {
-      success: false,
-      error: getErrorMessage(error),
-    };
-  }
-}
-
-export interface PaymentRequest {
-  ebooks: {
-    ebookId: string;
-    quantity: number;
-  }[];
-  paymentMethod: "M-pesa" | "cartao";
+// Tipos para as respostas da API
+export interface MpesaPaymentPayload {
+  paymentMethod: "mpesa";
+  cartId: string;
   phoneNumber: string;
-  province: string;
-  deliveryLocation: string;
-  contactInfo: {
-    name: string;
-    email: string;
-    phone: string;
-  };
 }
+
+export interface TransferPaymentPayload {
+  paymentMethod: "transference";
+  cartId: string;
+  proofImage: File;
+  referenceNumber: string;
+}
+
+export type PaymentPayload = MpesaPaymentPayload | TransferPaymentPayload;
 
 export interface PaymentResponse {
   success: boolean;
-  message: string;
-  orderId?: string;
-  transactionId?: string;
-  error?: string;
+  message: {
+    success: boolean;
+    statusCode: number;
+    mensagem: string;
+  };
+  payment?: {
+    id: string;
+    paymentDate: string;
+    entityId: string;
+    amount: number;
+    method: string;
+    status: "pending" | "completed" | "failed";
+    itemName: string;
+    itemId: string;
+    updatedAt: string;
+    createdAt: string;
+  };
+  mpesa?: {
+    id: string;
+    amount: number;
+    transactionReference: string;
+    thirdPartyReference: string;
+    userId: string;
+    responseDescription: string;
+    phoneNumber: string;
+    updatedAt: string;
+    createdAt: string;
+  };
 }
 
-export async function efectuarPagamento(
-  paymentData: PaymentRequest
-): Promise<PaymentResponse> {
-  try {
-    const response = await fetch(routes.buyebook, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(paymentData),
-    });
+export interface ApiResponse {
+  success: boolean;
+  data?: PaymentResponse;
+  message?: string;
+  status?: number;
+}
 
-    console.log("Response status:", response.status);
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || "Erro ao processar pagamento!!!");
+// Função auxiliar para pegar token do cookie
+function getToken() {
+  return cookies().get("token")?.value || "";
+}
+
+// =====================================
+// CREATE PAYMENT -> POST /payments/create
+// =====================================
+export async function createPayment(data: PaymentPayload): Promise<ApiResponse> {
+  try {
+    const token = getToken();
+
+    // Para pagamentos M-Pesa
+    if (data.paymentMethod === "mpesa") {
+      const payload = {
+        paymentMethod: data.paymentMethod,
+        cartId: data.cartId,
+        phoneNumber: data.phoneNumber
+      };
+
+      console.log("💰 Enviando pagamento M-Pesa:", payload);
+
+      const response = await axios.post(routes.payments_create, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const responseData: PaymentResponse = response.data;
+
+      // Mapear respostas da API para mensagens amigáveis
+      let userMessage = "Pagamento processado com sucesso!";
+      
+      if (!responseData.success) {
+        if (responseData.message?.mensagem.includes("Saldo insuficiente")) {
+          userMessage = "Saldo insuficiente na sua conta M-Pesa. Por favor, recarregue e tente novamente.";
+        } else if (responseData.message?.mensagem.includes("invalid phone number")) {
+          userMessage = "Número de telefone inválido. Por favor, verifique o número e tente novamente.";
+        } else if (responseData.message?.mensagem.includes("timeout")) {
+          userMessage = "Tempo limite excedido. Por favor, tente novamente.";
+        } else {
+          userMessage = responseData.message?.mensagem || "Erro ao processar pagamento. Tente novamente.";
+        }
+      } else {
+        if (responseData.payment?.status === "completed") {
+          userMessage = "Pagamento realizado com sucesso! Os bilhetes serão enviados para o seu email.";
+        } else if (responseData.payment?.status === "pending") {
+          userMessage = "Pagamento em processamento. Aguarde a confirmação.";
+        }
+      }
+
+      return {
+        success: responseData.success,
+        data: responseData,
+        status: response.status,
+        message: userMessage,
+      };
     }
 
-    const result = await response.json();
-
+    // Para pagamentos por transferência (será implementado separadamente)
     return {
-      success: true,
-      message: "Pagamento processado com sucesso!",
-      orderId: result.orderId,
-      transactionId: result.transactionId,
+      success: false,
+      message: "Método de pagamento não implementado",
     };
+
   } catch (error) {
-    console.error("Erro ao efetuar pagamento:", error);
+    console.error("💥 Erro ao processar pagamento:", error);
+    
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const errorData = error.response?.data;
+
+      let userMessage = "Erro ao processar pagamento. Tente novamente.";
+
+      // Mapear códigos de erro comuns
+      switch (status) {
+        case 400:
+          userMessage = "Dados inválidos. Verifique as informações e tente novamente.";
+          break;
+        case 401:
+          userMessage = "Sessão expirada. Por favor, faça login novamente.";
+          break;
+        case 403:
+          userMessage = "Acesso não autorizado.";
+          break;
+        case 422:
+          userMessage = errorData?.message?.mensagem || "Não foi possível processar o pagamento. Verifique os dados.";
+          break;
+        case 500:
+          userMessage = "Erro interno do servidor. Tente novamente em alguns instantes.";
+          break;
+        case 503:
+          userMessage = "Serviço temporariamente indisponível. Tente novamente mais tarde.";
+          break;
+        default:
+          userMessage = errorData?.message?.mensagem || "Erro inesperado. Tente novamente.";
+      }
+
+      return {
+        success: false,
+        status: status,
+        message: userMessage,
+      };
+    }
 
     return {
       success: false,
-      message: "Erro ao processar pagamento. Tente novamente.",
-      error: error instanceof Error ? error.message : "Erro desconhecido",
+      message: "Erro de conexão. Verifique sua internet e tente novamente.",
     };
   }
 }
 
-// Função auxiliar para validar dados de pagamento
-export async function validatePaymentData(data: PaymentRequest) {
-  const errors: string[] = [];
-
-  if (!data.ebooks || data.ebooks.length === 0) {
-    errors.push("Nenhum ebook selecionado");
+// =====================================
+// CREATE TRANSFER PAYMENT -> POST /payments/transference/create
+// =====================================
+// =====================================
+// CREATE TRANSFER PAYMENT -> POST /payments/transference/create
+// =====================================
+export async function createTransferPayment(
+  cartId: string,
+  fileData: {
+    name: string;
+    type: string;
+    size: number;
+    base64: string;
   }
+): Promise<ApiResponse> {
+  try {
+    const token = getToken();
 
-  if (!data.paymentMethod) {
-    errors.push("Método de pagamento é obrigatório");
+    console.log("💰 Iniciando pagamento por transferência:", {
+      cartId,
+      fileName: fileData.name,
+      fileSize: fileData.size,
+      fileType: fileData.type
+    });
+
+    // Converter base64 para blob
+    const response = await fetch(fileData.base64);
+    const blob = await response.blob();
+    const file = new File([blob], fileData.name, { type: fileData.type });
+
+    const formData = new FormData();
+    formData.append("paymentMethod", "transference");
+    formData.append("cartId", cartId);
+    formData.append("file", file);
+
+    console.log("📦 FormData criado, enviando requisição...");
+
+    const axiosResponse = await axios.post(routes.payments_transference_create, formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "multipart/form-data",
+      },
+      timeout: 30000,
+    });
+
+    console.log("✅ Resposta do servidor:", axiosResponse.data);
+
+    const responseData = axiosResponse.data;
+
+    let userMessage = "Comprovante enviado com sucesso! Aguarde a confirmação do pagamento.";
+
+    if (!responseData.success) {
+      userMessage = responseData.message?.mensagem || "Erro ao enviar comprovante. Tente novamente.";
+    }
+
+    return {
+      success: responseData.success,
+      data: responseData,
+      status: axiosResponse.status,
+      message: userMessage,
+    };
+
+  } catch (error) {
+    console.error("💥 Erro ao enviar comprovante de transferência:", error);
+    
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const errorData = error.response?.data;
+
+      let userMessage = "Erro ao enviar comprovante. Tente novamente.";
+
+      switch (status) {
+        case 400:
+          userMessage = "Arquivo inválido ou dados incorretos. Verifique o comprovante e tente novamente.";
+          break;
+        case 401:
+          userMessage = "Sessão expirada. Por favor, faça login novamente.";
+          break;
+        case 403:
+          userMessage = "Acesso não autorizado.";
+          break;
+        case 413:
+          userMessage = "Arquivo muito grande. O comprovante deve ter no máximo 5MB.";
+          break;
+        case 422:
+          userMessage = errorData?.message?.mensagem || "Não foi possível processar o comprovante. Verifique o arquivo.";
+          break;
+        case 500:
+          userMessage = "Erro interno do servidor. Tente novamente em alguns instantes.";
+          break;
+        case 503:
+          userMessage = "Serviço temporariamente indisponível. Tente novamente mais tarde.";
+          break;
+        default:
+          userMessage = errorData?.message?.mensagem || "Erro inesperado ao enviar comprovante.";
+      }
+
+      return {
+        success: false,
+        status: status,
+        message: userMessage,
+      };
+    }
+
+    return {
+      success: false,
+      message: "Erro de conexão. Verifique sua internet e tente novamente.",
+    };
   }
+}
 
-  if (!data.phoneNumber || data.phoneNumber.trim() === "") {
-    errors.push("Número de telefone é obrigatório");
+// =====================================
+// GET PAYMENT STATUS -> GET /payments/:id
+// =====================================
+export async function getPaymentStatus(paymentId: string): Promise<ApiResponse> {
+  try {
+    const token = getToken();
+
+    const response = await axios.get(`${routes.payments}/${paymentId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return {
+      success: true,
+      data: response.data,
+      status: response.status,
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      return {
+        success: false,
+        status: error.response?.status ?? 500,
+        message: error.response?.data?.message || "Erro ao buscar status do pagamento.",
+      };
+    }
+    return { success: false, message: String(error) };
   }
+}
 
-  if (!data.province || data.province.trim() === "") {
-    errors.push("Província é obrigatória");
+// =====================================
+// LIST PAYMENTS -> GET /payments/list
+// =====================================
+export async function listPayments(): Promise<ApiResponse> {
+  try {
+    const token = getToken();
+
+    const response = await axios.get(routes.payments_list, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return {
+      success: true,
+      data: response.data,
+      status: response.status,
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      return {
+        success: false,
+        status: error.response?.status ?? 500,
+        message: error.response?.data?.message || "Erro ao listar pagamentos.",
+      };
+    }
+    return { success: false, message: String(error) };
   }
+}
 
-  if (!data.deliveryLocation || data.deliveryLocation.trim() === "") {
-    errors.push("Localização de entrega é obrigatória");
+// =====================================
+// UPLOAD TRANSFER PROOF (Legacy) -> Mantido para compatibilidade
+// =====================================
+export async function uploadTransferProof(
+  cartId: string,
+  referenceNumber: string,
+  proofImage: File
+): Promise<ApiResponse> {
+  try {
+    const token = getToken();
+
+    console.log("📤 Usando método legacy de upload de comprovante");
+
+    const formData = new FormData();
+    formData.append("cartId", cartId);
+    formData.append("referenceNumber", referenceNumber);
+    formData.append("proofImage", proofImage);
+
+    const response = await axios.post(routes.payments_transfer_proof, formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    return {
+      success: true,
+      data: response.data,
+      status: response.status,
+      message: "Comprovante enviado com sucesso! Aguarde a confirmação do pagamento.",
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      return {
+        success: false,
+        status: error.response?.status ?? 500,
+        message: error.response?.data?.message || "Erro ao enviar comprovante.",
+      };
+    }
+    return { success: false, message: String(error) };
   }
-
-  if (!data.contactInfo.name || data.contactInfo.name.trim() === "") {
-    errors.push("Nome é obrigatório");
-  }
-
-  if (!data.contactInfo.email || data.contactInfo.email.trim() === "") {
-    errors.push("Email é obrigatório");
-  }
-
-  if (!data.contactInfo.phone || data.contactInfo.phone.trim() === "") {
-    errors.push("Telefone de contato é obrigatório");
-  }
-
-  // Validação básica de email
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (data.contactInfo.email && !emailRegex.test(data.contactInfo.email)) {
-    errors.push("Email inválido");
-  }
-
-  // Validação básica de telefone moçambicano
-  const phoneRegex = /^(\+258|258)?[0-9]{8,9}$/;
-  if (
-    data.phoneNumber &&
-    !phoneRegex.test(data.phoneNumber.replace(/\s/g, ""))
-  ) {
-    errors.push("Número de telefone inválido");
-  }
-
-  return errors;
 }

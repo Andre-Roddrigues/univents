@@ -9,14 +9,13 @@ import {
   Shield, 
   CheckCircle,
   Upload,
-  FileText,
-  Calendar,
-  MapPin,
-  Ticket,
-  Loader
+  Loader,
+  Ticket
 } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { createPayment, createTransferPayment } from '@/lib/actions/payment-actions';
+import { toast } from 'sonner';
 
 interface CartItem {
   id: string;
@@ -24,25 +23,12 @@ interface CartItem {
   quantity: number;
   price: number;
   totalProductDiscount: number | null;
-  ticket?: {
-    id: string;
-    name: string;
-    type: string;
-    event?: {
-      id: string;
-      title: string;
-      img: string;
-      startDate: string;
-      location: string;
-      province: string;
-    };
-  };
 }
 
 interface Cart {
   id: string;
   discount: number | null;
-  totalPriceAfterDiscount: number | null;
+  totalPriceAftertDiscount: number | null;
   totalPrice: number;
   userId: string;
   cartItems: CartItem[];
@@ -56,6 +42,16 @@ interface PaymentMethod {
   instructions: string;
 }
 
+// Função para converter File para base64
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+};
+
 export default function CheckoutPage() {
   const router = useRouter();
   const params = useParams();
@@ -68,7 +64,7 @@ export default function CheckoutPage() {
   const [proofImage, setProofImage] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [referenceNumber, setReferenceNumber] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const paymentMethods: PaymentMethod[] = [
     { 
@@ -96,64 +92,40 @@ export default function CheckoutPage() {
   const loadCart = async () => {
     try {
       setLoading(true);
-      // Simular carregamento do carrinho da API
-      // Substituir por chamada real à API
+      setError(null);
+      
+      // Simular carregamento da API
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Mock data - substituir por dados reais da API
+      // Mock data baseado na estrutura real
       const mockCart: Cart = {
         id: cartId,
         discount: null,
-        totalPriceAfterDiscount: null,
-        totalPrice: 15000,
+        totalPriceAftertDiscount: null,
+        totalPrice: 125000,
         userId: 'user-id',
         cartItems: [
           {
-            id: 'item-1',
-            ticketId: 'ticket-1',
-            quantity: 2,
+            id: '83558db2-9f8a-4aef-9944-1e46cd7575fc',
+            ticketId: '74991e45-79af-44b8-86c2-8df395c76079',
+            quantity: 34,
             price: 5000,
-            totalProductDiscount: null,
-            ticket: {
-              id: 'ticket-1',
-              name: 'Bilhete Normal',
-              type: 'normal',
-              event: {
-                id: 'event-1',
-                title: 'Show de Música Ao Vivo',
-                img: '/placeholder-event.jpg',
-                startDate: '2024-12-25T20:00:00Z',
-                location: 'Auditório Principal',
-                province: 'Maputo'
-              }
-            }
+            totalProductDiscount: null
           },
           {
-            id: 'item-2',
-            ticketId: 'ticket-2',
-            quantity: 1,
-            price: 5000,
-            totalProductDiscount: null,
-            ticket: {
-              id: 'ticket-2',
-              name: 'Bilhete VIP',
-              type: 'vip',
-              event: {
-                id: 'event-1',
-                title: 'Show de Música Ao Vivo',
-                img: '/placeholder-event.jpg',
-                startDate: '2024-12-25T20:00:00Z',
-                location: 'Auditório Principal',
-                province: 'Maputo'
-              }
-            }
+            id: '4a938185-aa6e-4890-99a2-6c54489834d2',
+            ticketId: '74991e45-79af-44b8-86c2-8df395c76080',
+            quantity: 10,
+            price: 9000,
+            totalProductDiscount: null
           }
         ]
       };
       
       setCart(mockCart);
-    } catch (error) {
-      console.error('Erro ao carregar carrinho:', error);
+    } catch (err) {
+      console.error('Erro ao carregar carrinho:', err);
+      setError('Erro ao carregar carrinho');
     } finally {
       setLoading(false);
     }
@@ -162,15 +134,13 @@ export default function CheckoutPage() {
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validar tipo de arquivo
       if (!file.type.startsWith('image/')) {
-        alert('Por favor, selecione apenas imagens');
+        toast.error('Por favor, selecione apenas imagens');
         return;
       }
       
-      // Validar tamanho (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('A imagem deve ter no máximo 5MB');
+        toast.error('A imagem deve ter no máximo 5MB');
         return;
       }
       
@@ -180,27 +150,39 @@ export default function CheckoutPage() {
 
   const processMpesaPayment = async () => {
     if (!phoneNumber) {
-      alert('Por favor, insira o número de telefone');
+      toast.error('Por favor, insira o número de telefone');
       return;
     }
 
-    setProcessing(true);
-    try {
-      // Simular processamento M-Pesa
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Aqui você integraria com a API real do M-Pesa
-      console.log('Processando pagamento M-Pesa:', {
-        cartId,
-        phoneNumber,
-        amount: cart?.totalPrice
-      });
+    if (!cart) return;
 
-      // Redirecionar para confirmação
-      router.push(`/payment-success?cart=${cartId}&method=mpesa`);
+    setProcessing(true);
+    
+    const loadingToast = toast.loading('Processando pagamento M-Pesa...');
+
+    try {
+      const payload = {
+        paymentMethod: "mpesa" as const,
+        cartId: cart.id,
+        phoneNumber: phoneNumber
+      };
+
+      console.log('💰 Enviando pagamento M-Pesa:', payload);
+
+      const result = await createPayment(payload);
+
+      toast.dismiss(loadingToast);
+
+      if (result.success) {
+        toast.success(result.message || 'Pagamento realizado com sucesso!');
+        router.push(`/eventos/payment-success?payment=${result.data?.payment?.id}&cart=${cart.id}&method=mpesa&amount=${cart.totalPrice}`);
+      } else {
+        toast.error(result.message || 'Erro ao processar pagamento');
+      }
     } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error('Erro inesperado. Tente novamente.');
       console.error('Erro no pagamento M-Pesa:', error);
-      alert('Erro ao processar pagamento. Tente novamente.');
     } finally {
       setProcessing(false);
     }
@@ -208,57 +190,73 @@ export default function CheckoutPage() {
 
   const processTransferPayment = async () => {
     if (!proofImage) {
-      alert('Por favor, faça upload do comprovativo');
+      toast.error('Por favor, faça upload do comprovativo');
       return;
     }
 
-    if (!referenceNumber) {
-      alert('Por favor, insira o número de referência');
-      return;
-    }
+    if (!cart) return;
 
     setUploading(true);
-    try {
-      // Simular upload do comprovativo
-      const formData = new FormData();
-      formData.append('proof', proofImage);
-      formData.append('cartId', cartId);
-      formData.append('reference', referenceNumber);
-      formData.append('amount', cart?.totalPrice?.toString() || '0');
+    
+    const loadingToast = toast.loading('Enviando comprovativo...');
 
-      // Aqui você enviaria o formData para a API
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      console.log('Comprovativo enviado:', {
-        cartId,
-        referenceNumber,
-        fileName: proofImage.name
+    try {
+      console.log('💰 Iniciando pagamento por transferência:', {
+        cartId: cart.id,
+        fileName: proofImage.name,
+        fileSize: proofImage.size,
+        fileType: proofImage.type
       });
 
-      // Redirecionar para confirmação
-      router.push(`/payment-pending?cart=${cartId}&method=transfer`);
+      // Converter File para base64 antes de enviar para Server Action
+      console.log('🔄 Convertendo arquivo para base64...');
+      const base64String = await fileToBase64(proofImage);
+
+      const fileData = {
+        name: proofImage.name,
+        type: proofImage.type,
+        size: proofImage.size,
+        base64: base64String
+      };
+
+      console.log('📤 Enviando dados do arquivo para Server Action...');
+
+      // Usar a nova função createTransferPayment com dados serializáveis
+      const result = await createTransferPayment(cart.id, fileData);
+
+      toast.dismiss(loadingToast);
+
+      if (result.success) {
+        console.log('✅ Comprovativo enviado com sucesso:', result);
+        toast.success(result.message || 'Comprovativo enviado com sucesso!');
+        router.push(`/eventos/payment-pending?cart=${cart.id}&method=transfer&amount=${cart.totalPrice}`);
+      } else {
+        console.error('❌ Erro ao enviar comprovativo:', result);
+        toast.error(result.message || 'Erro ao enviar comprovativo');
+      }
     } catch (error) {
-      console.error('Erro ao enviar comprovativo:', error);
-      alert('Erro ao enviar comprovativo. Tente novamente.');
+      toast.dismiss(loadingToast);
+      toast.error('Erro inesperado. Tente novamente.');
+      console.error('💥 Erro ao enviar comprovativo:', error);
     } finally {
       setUploading(false);
     }
   };
 
   const handlePayment = async () => {
+    if (!cart) return;
+
+    console.log('🛒 Iniciando processo de pagamento:', {
+      method: selectedPayment,
+      cartId: cart.id,
+      total: cart.totalPrice
+    });
+
     if (selectedPayment === 'mpesa') {
       await processMpesaPayment();
     } else {
       await processTransferPayment();
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-MZ', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
   };
 
   const formatCurrency = (amount: number) => {
@@ -268,6 +266,14 @@ export default function CheckoutPage() {
     });
   };
 
+  const getTicketDisplayInfo = (price: number, ticketId: string) => {
+    if (price >= 9000) return { name: "Bilhete VIP", type: "vip" };
+    if (price >= 5000) return { name: "Bilhete Normal", type: "normal" };
+    return { name: `Bilhete ${ticketId.slice(0, 8)}`, type: "standard" };
+  };
+
+  // ... restante do código do componente (loading, error, JSX) permanece igual
+  // (mantenha todo o JSX do componente que você já tinha)
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -279,22 +285,22 @@ export default function CheckoutPage() {
     );
   }
 
-  if (!cart) {
+  if (error || !cart) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <CreditCard className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-foreground mb-2">
-            Carrinho não encontrado
+            {error || 'Carrinho não encontrado'}
           </h3>
           <p className="text-muted-foreground mb-6">
             O carrinho que procura não está disponível.
           </p>
           <Link
-            href="/eventos"
+            href="/carrinho"
             className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
           >
-            Voltar aos Eventos
+            Voltar ao Carrinho
           </Link>
         </div>
       </div>
@@ -333,6 +339,9 @@ export default function CheckoutPage() {
                 <p className="text-muted-foreground">
                   Complete seu pedido escolhendo o método de pagamento
                 </p>
+                <div className="mt-2 text-sm text-muted-foreground">
+                  ID do Carrinho: <span className="font-mono">{cartId}</span>
+                </div>
               </div>
 
               {/* Resumo do Pedido */}
@@ -342,47 +351,49 @@ export default function CheckoutPage() {
                 </h2>
                 
                 <div className="space-y-4">
-                  {cart.cartItems.map((item, index) => (
-                    <div key={item.id} className="flex gap-4 pb-4 border-b border-border last:border-0">
-                      <img
-                        src={item.ticket?.event?.img || '/placeholder-event.jpg'}
-                        alt={item.ticket?.event?.title || 'Evento'}
-                        className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-                      />
-                      
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground mb-1">
-                          {item.ticket?.event?.title || 'Evento'}
-                        </h3>
-                        
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                          <Calendar className="w-4 h-4" />
-                          {item.ticket?.event && formatDate(item.ticket.event.startDate)}
-                          <MapPin className="w-4 h-4 ml-2" />
-                          {item.ticket?.event?.location}
+                  {cart.cartItems.map((item, index) => {
+                    const ticketInfo = getTicketDisplayInfo(item.price, item.ticketId);
+                    
+                    return (
+                      <div key={item.id} className="flex gap-4 pb-4 border-b border-border last:border-0">
+                        <div className="flex-shrink-0">
+                          <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center">
+                            <Ticket className="w-8 h-8 text-primary" />
+                          </div>
                         </div>
                         
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Ticket className="w-4 h-4 text-primary" />
-                            <span className="font-medium">{item.ticket?.name}</span>
-                            <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">
-                              {item.ticket?.type?.toUpperCase()}
-                            </span>
-                          </div>
-                          
-                          <div className="text-right">
-                            <div className="font-semibold text-foreground">
-                              {formatCurrency(item.price * item.quantity)}
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h3 className="font-semibold text-foreground mb-1">
+                                {ticketInfo.name}
+                              </h3>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                  ticketInfo.type === 'vip' 
+                                    ? 'bg-purple-100 text-purple-800' 
+                                    : ticketInfo.type === 'normal'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {ticketInfo.type.toUpperCase()}
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                  {item.quantity} × {formatCurrency(item.price)}
+                                </span>
+                              </div>
                             </div>
-                            <div className="text-sm text-muted-foreground">
-                              {item.quantity} × {formatCurrency(item.price)}
+                            
+                            <div className="text-right">
+                              <div className="font-semibold text-foreground">
+                                {formatCurrency(item.price * item.quantity)}
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Total */}
@@ -462,19 +473,6 @@ export default function CheckoutPage() {
                     
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">
-                        Número de Referência
-                      </label>
-                      <input
-                        type="text"
-                        value={referenceNumber}
-                        onChange={(e) => setReferenceNumber(e.target.value)}
-                        placeholder="Número da transferência"
-                        className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent mb-4"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">
                         Comprovativo de Transferência
                       </label>
                       <div className="border-2 border-dashed border-border rounded-lg p-4 text-center">
@@ -508,7 +506,7 @@ export default function CheckoutPage() {
                 onClick={handlePayment}
                 disabled={processing || uploading || 
                   (selectedPayment === 'mpesa' && !phoneNumber) ||
-                  (selectedPayment === 'transfer' && (!proofImage || !referenceNumber))}
+                  (selectedPayment === 'transfer' && !proofImage)}
                 className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-bold text-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
               >
                 {processing || uploading ? (
