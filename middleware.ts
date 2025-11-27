@@ -4,26 +4,44 @@ import { isValidSession } from "./services/auth-services";
 
 export async function middleware(req: NextRequest) {
   const session = await isValidSession();
-  const { pathname } = req.nextUrl;
+  const { pathname, search } = req.nextUrl;
 
-  if (
-    (pathname.startsWith("/checkout") || pathname.startsWith("/perfil")) &&
-    !session
-  ) {
-    const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("redirect", pathname + req.nextUrl.search);
-    return NextResponse.redirect(loginUrl);
+  const isProtectedRoute =
+    pathname.startsWith("/checkout") ||
+    pathname.startsWith("/perfil");
+
+  // ============================================
+  // ❌ Caso NÃO tenha sessão, bloquear rota protegida
+  // ============================================
+  if (isProtectedRoute && !session) {
+    const redirectUrl = new URL("/login", req.url);
+    redirectUrl.searchParams.set("redirect", pathname + search);
+    return NextResponse.redirect(redirectUrl);
   }
 
+  // ============================================
+  // ✔️ Usuário já logado mas tentando acessar /login ou /verify-otp
+  // ============================================
   if ((pathname === "/login" || pathname === "/verify-otp") && session) {
-    const redirectUrl = req.nextUrl.searchParams.get("redirect") || "/eventos";
-    return NextResponse.redirect(new URL(redirectUrl, req.url));
+    const redirectTo = req.nextUrl.searchParams.get("redirect") || "/eventos";
+    return NextResponse.redirect(new URL(redirectTo, req.url));
   }
 
   return NextResponse.next();
 }
 
-// Configuração do middleware
+// ============================================
+// CONFIGURAÇÃO
+// Bloqueia:
+// - /checkout e /checkout/[id]
+// - /perfil e /perfil/alguma-coisa
+// - Evita acesso ao login quando já logado
+// ============================================
 export const config = {
-  matcher: ["/checkout/:path*", "/user/:path*", "/login", "/verify-otp"],
+  matcher: [
+    "/checkout/:path*",
+    "/perfil/:path*",
+    "/login",
+    "/verify-otp",
+  ],
 };
