@@ -1,5 +1,10 @@
 import PaymentPendingPage from "@/components/Eventos/payment-pending/page";
 
-export default function Page() {
-    return <PaymentPendingPage />;
+function page() {
+  return (
+  <div className="pt-[8vh]">
+    <PaymentPendingPage />
+</div>
+);
 }
+export default page;
