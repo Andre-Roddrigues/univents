@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import axios from "axios";
-import { routes } from "@/config/routes"; // <= substitui aqui se o path for outro
+import { routes } from "@/config/routes";
 
 // Tipos
 export interface CartItemPayload {
@@ -20,7 +20,7 @@ function getToken() {
 }
 
 // =====================================
-// CREATE CART  -> POST /carts/create
+// CREATE CART  -> POST /carts
 // =====================================
 export async function createCart(data: CreateCartPayload) {
   try {
@@ -53,9 +53,6 @@ export async function createCart(data: CreateCartPayload) {
 // =====================================
 // LIST CARTS -> GET /carts/list
 // =====================================
-// =====================================
-// LIST CARTS -> GET /carts/list
-// =====================================
 export async function listCarts() {
   try {
     const token = getToken();
@@ -66,7 +63,6 @@ export async function listCarts() {
       },
     });
 
-    // Aqui devolvemos igual ao backend:
     return {
       success: response.data?.success ?? true,
       carts: response.data?.carts ?? [],
@@ -84,7 +80,6 @@ export async function listCarts() {
     return { success: false, carts: [], message: String(error) };
   }
 }
-
 
 // =====================================
 // GET CART BY ID -> GET /carts/:id
@@ -117,6 +112,7 @@ export async function getCartById(cartId: string) {
     return { success: false, message: String(error) };
   }
 }
+
 // =====================================
 // GET CART -> GET /carts/:id
 // =====================================
@@ -132,7 +128,6 @@ export async function getCart(cartId: string) {
 
     console.log('📦 Resposta da API getCart:', response.data);
 
-    // Verificar diferentes formatos de resposta
     const cartData = response.data?.cart || response.data?.data?.cart || response.data;
 
     return {
@@ -154,14 +149,15 @@ export async function getCart(cartId: string) {
     return { success: false, message: String(error) };
   }
 }
+
 // =====================================
-// UPDATE CART -> PUT /carts/:id
+// UPDATE CART ITEMS -> PUT /carts/update-items/:id
 // =====================================
-export async function updateCart(cartId: string, data: CreateCartPayload) {
+export async function updateCartItems(cartId: string, data: CreateCartPayload) {
   try {
     const token = getToken();
 
-    const response = await axios.put(`${routes.carts}/${cartId}`, data, {
+    const response = await axios.put(`${routes.cart_update}/${cartId}`, data, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -180,6 +176,38 @@ export async function updateCart(cartId: string, data: CreateCartPayload) {
         status: error.response?.status ?? 500,
         message:
           error.response?.data?.message || "Erro ao atualizar o carrinho.",
+      };
+    }
+    return { success: false, message: String(error) };
+  }
+}
+
+// =====================================
+// REMOVE CART ITEMS -> PUT /carts/remove-items/:id
+// =====================================
+export async function removeCartItems(cartId: string, data: CreateCartPayload) {
+  try {
+    const token = getToken();
+
+    const response = await axios.put(`${routes.cart_remove}/${cartId}`, data, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return {
+      success: true,
+      data: response.data,
+      status: response.status,
+      message: "Itens removidos do carrinho com sucesso!",
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      return {
+        success: false,
+        status: error.response?.status ?? 500,
+        message:
+          error.response?.data?.message || "Erro ao remover itens do carrinho.",
       };
     }
     return { success: false, message: String(error) };
@@ -215,5 +243,114 @@ export async function deleteCart(cartId: string) {
       };
     }
     return { success: false, message: String(error) };
+  }
+}
+
+// =====================================
+// ADD TO CART (Função inteligente)
+// =====================================
+export async function addToCart(data: CreateCartPayload) {
+  try {
+    const cookieStore = await cookies();
+    const cartId = cookieStore.get('cartId')?.value;
+
+    if (cartId) {
+      // Se já existe carrinho, ATUALIZA os itens
+      return await updateCartItems(cartId, data);
+    } else {
+      // Se não existe carrinho, CRIA novo
+      const result = await createCart(data);
+      
+      // Salva o ID do carrinho nos cookies se foi criado com sucesso
+      if (result.success && result.data?.id) {
+        cookieStore.set('cartId', result.data.id, {
+          maxAge: 60 * 60 * 24 * 7, // 7 dias
+          path: '/',
+        });
+      }
+      
+      return result;
+    }
+  } catch (error) {
+    console.error('💥 Erro ao adicionar ao carrinho:', error);
+    return {
+      success: false,
+      message: 'Erro de conexão ao adicionar ao carrinho'
+    };
+  }
+}
+
+// =====================================
+// CLEAR CART (Limpar completamente)
+// =====================================
+export async function clearCart() {
+  try {
+    const cookieStore = await cookies();
+    const cartId = cookieStore.get('cartId')?.value;
+
+    if (!cartId) {
+      return {
+        success: true,
+        message: 'Carrinho já está vazio'
+      };
+    }
+
+    // Para limpar completamente, removemos todos os items
+    const response = await axios.put(`${routes.cart_remove}/${cartId}`, {
+      items: [] // Array vazio para remover tudo
+    }, {
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    });
+
+    const data = response.data;
+
+    if (response.status === 200 && data.success) {
+      // Limpar cookie
+      cookieStore.delete('cartId');
+      
+      return {
+        success: true,
+        message: 'Carrinho limpo com sucesso'
+      };
+    }
+
+    return {
+      success: false,
+      message: data.message || 'Erro ao limpar carrinho'
+    };
+  } catch (error) {
+    console.error('💥 Erro ao limpar carrinho:', error);
+    return {
+      success: false,
+      message: 'Erro de conexão ao limpar carrinho'
+    };
+  }
+}
+
+// =====================================
+// GET CURRENT CART (Obter carrinho atual)
+// =====================================
+export async function getCurrentCart() {
+  try {
+    const cookieStore = await cookies();
+    const cartId = cookieStore.get('cartId')?.value;
+
+    if (!cartId) {
+      return {
+        success: true,
+        data: null
+      };
+    }
+
+    const result = await getCart(cartId);
+    return result;
+  } catch (error) {
+    console.error('💥 Erro ao obter carrinho atual:', error);
+    return {
+      success: false,
+      message: 'Erro de conexão ao obter carrinho'
+    };
   }
 }

@@ -283,13 +283,13 @@ export default function RecentEvents() {
                 
                 {/* Event Image */}
                 <div className="relative h-48 bg-gradient-to-br from-primary/20 to-secondary/20 overflow-hidden">
-                  {event.featured && (
+                  {/* {event.featured && (
                     <div className="absolute top-3 left-3 z-10">
                       <span className="px-3 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">
                         Em Destaque
                       </span>
                     </div>
-                  )}
+                  )} */}
                   
                   {event.ticketsLeft < 50 && (
                     <div className="absolute top-3 right-3 z-10">
@@ -303,10 +303,10 @@ export default function RecentEvents() {
                   <div className="absolute bottom-3 left-3 z-10">
                     <span className={`px-3 py-1 text-xs font-medium rounded-full flex items-center gap-1 ${
                       event.eventType === 'online' 
-                        ? 'bg-blue-500/10 text-blue-500' 
-                        : 'bg-green-500/10 text-green-500'
+                        ? 'bg-[#000214] text-[#ffbf00]' 
+                        : 'bg-[#000214] text-[#ffbf00]'
                     }`}>
-                      <span>{event.eventType === 'online' ? '🌐' : '📍'}</span>
+                      <span>{event.eventType === 'online' ? '' : ''}</span>
                       {event.eventType === 'online' ? 'Online' : 'Presencial'}
                     </span>
                   </div>

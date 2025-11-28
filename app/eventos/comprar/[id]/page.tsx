@@ -13,7 +13,9 @@ import {
   CreditCard,
   Smartphone,
   Shield,
-  CheckCircle
+  CheckCircle,
+  Plus,
+  Minus
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -89,16 +91,33 @@ interface EventPurchaseData {
   }>;
 }
 
+// Interface para os itens do carrinho
+interface CartItem {
+  ticketId: string;
+  name: string;
+  type: string;
+  price: number;
+  quantity: number;
+  maxQuantity: number;
+  benefits: Array<{
+    id: string;
+    name: string;
+    description: string;
+    icon: string | null;
+  }>;
+}
+
 export default function EventPurchasePage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const [selectedTicketType, setSelectedTicketType] = useState<string>('');
-  const [ticketQuantity, setTicketQuantity] = useState(1);
   const [selectedPayment, setSelectedPayment] = useState('mpesa');
   const [isProcessing, setIsProcessing] = useState(false);
   const [event, setEvent] = useState<EventPurchaseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCartFeedback, setShowCartFeedback] = useState(false);
+  
+  // Estado para gerenciar quantidades de cada bilhete
+  const [ticketQuantities, setTicketQuantities] = useState<{[key: string]: number}>({});
 
   // Fetch event data from API
   useEffect(() => {
@@ -119,12 +138,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
         if (data.success && data.event) {
           const apiEvent: ApiEvent = data.event;
           console.log('🎫 Complete event data:', apiEvent);
-          console.log('🎟️ Tickets property exists:', 'tickets' in apiEvent);
-          console.log('🎟️ Tickets value:', apiEvent.tickets);
-          console.log('🎟️ Tickets type:', typeof apiEvent.tickets);
-          console.log('🎟️ Is array?:', Array.isArray(apiEvent.tickets));
           
-          // ✅ CORREÇÃO: Verificar se tickets existe e é um array
           const tickets = apiEvent.tickets && Array.isArray(apiEvent.tickets) ? apiEvent.tickets : [];
           
           console.log('✅ Processed tickets:', tickets);
@@ -143,12 +157,9 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
             });
           } else {
             console.log('❌ No tickets found or tickets is not an array');
-            
-            // ✅ CORREÇÃO: Criar tickets padrão se não existirem
             console.log('🛠️ Creating default tickets...');
           }
           
-          // ✅ CORREÇÃO: Usar os tickets processados
           const transformedEvent: EventPurchaseData = {
             id: apiEvent.id,
             title: apiEvent.title,
@@ -184,7 +195,6 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
             }))
           };
 
-          // ✅ CORREÇÃO: Se não houver tickets, criar alguns padrão
           if (transformedEvent.ticketTypes.length === 0) {
             console.log('🛠️ Creating default ticket types...');
             transformedEvent.ticketTypes = [
@@ -227,7 +237,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                 lastDayPayment: apiEvent.startDate
               }
             ];
-            transformedEvent.ticketsLeft = 70; // 50 + 20
+            transformedEvent.ticketsLeft = 70;
           }
 
           console.log('✨ Final transformed event:', transformedEvent);
@@ -235,13 +245,13 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
           
           setEvent(transformedEvent);
           
-          // Set first ticket as default selection if available
-          if (transformedEvent.ticketTypes.length > 0) {
-            setSelectedTicketType(transformedEvent.ticketTypes[0].id);
-            console.log('✅ Default ticket selected:', transformedEvent.ticketTypes[0].id);
-          } else {
-            console.log('❌ No tickets available to select');
-          }
+          // Inicializar quantidades como 0 para todos os bilhetes
+          const initialQuantities: {[key: string]: number} = {};
+          transformedEvent.ticketTypes.forEach(ticket => {
+            initialQuantities[ticket.id] = 0;
+          });
+          setTicketQuantities(initialQuantities);
+          
         } else {
           console.log('❌ API response not successful:', data);
           throw new Error('Dados do evento não disponíveis');
@@ -259,10 +269,72 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
     }
   }, [params.id]);
 
-  const selectedTicket = event?.ticketTypes.find(ticket => ticket.id === selectedTicketType);
-  const subtotal = selectedTicket ? selectedTicket.price * ticketQuantity : 0;
+  // Funções para gerenciar quantidades
+  const increaseQuantity = (ticketId: string) => {
+    if (!event) return;
+    
+    const ticket = event.ticketTypes.find(t => t.id === ticketId);
+    if (!ticket) return;
+    
+    const currentQuantity = ticketQuantities[ticketId] || 0;
+    const maxQuantity = Math.min(ticket.availableQuantity, 10);
+    
+    if (currentQuantity < maxQuantity) {
+      setTicketQuantities(prev => ({
+        ...prev,
+        [ticketId]: currentQuantity + 1
+      }));
+    }
+  };
+
+  const decreaseQuantity = (ticketId: string) => {
+    const currentQuantity = ticketQuantities[ticketId] || 0;
+    
+    if (currentQuantity > 0) {
+      setTicketQuantities(prev => ({
+        ...prev,
+        [ticketId]: currentQuantity - 1
+      }));
+    }
+  };
+
+  const setQuantity = (ticketId: string, quantity: number) => {
+    if (!event) return;
+    
+    const ticket = event.ticketTypes.find(t => t.id === ticketId);
+    if (!ticket) return;
+    
+    const maxQuantity = Math.min(ticket.availableQuantity, 10);
+    const newQuantity = Math.max(0, Math.min(quantity, maxQuantity));
+    
+    setTicketQuantities(prev => ({
+      ...prev,
+      [ticketId]: newQuantity
+    }));
+  };
+
+  // Calcular totais
+  const getCartItems = (): CartItem[] => {
+    if (!event) return [];
+    
+    return event.ticketTypes
+      .filter(ticket => (ticketQuantities[ticket.id] || 0) > 0)
+      .map(ticket => ({
+        ticketId: ticket.id,
+        name: ticket.name,
+        type: ticket.type,
+        price: ticket.price,
+        quantity: ticketQuantities[ticket.id] || 0,
+        maxQuantity: Math.min(ticket.availableQuantity, 10),
+        benefits: ticket.benefits
+      }));
+  };
+
+  const cartItems = getCartItems();
+  const subtotal = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
   const serviceFee = subtotal * 0.00;
   const total = subtotal + serviceFee;
+  const totalItems = cartItems.reduce((total, item) => total + item.quantity, 0);
 
   // 🔥 FUNÇÃO PARA OBTER COR DO TIPO DE TICKET
   const getTicketTypeColor = (type: string) => {
@@ -279,12 +351,13 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
   };
 
   const handlePurchase = async () => {
-    if (!event || !selectedTicket) return;
+    if (!event || cartItems.length === 0) return;
     
     setIsProcessing(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
-      router.push(`/compra-confirmada?event=${event.id}&ticket=${selectedTicket.id}&quantity=${ticketQuantity}&total=${total}`);
+      // Aqui você precisará adaptar para lidar com múltiplos tipos de bilhetes
+      router.push(`/compra-confirmada?event=${event.id}&total=${total}`);
     } catch (err) {
       console.error('Erro no processamento:', err);
     } finally {
@@ -292,10 +365,10 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
     }
   };
 
-const handleAddToCart = () => {
-  setShowCartFeedback(true);
-  setTimeout(() => setShowCartFeedback(false), 3000);
-};
+  const handleAddToCart = () => {
+    setShowCartFeedback(true);
+    setTimeout(() => setShowCartFeedback(false), 3000);
+  };
 
   const paymentMethods = [
     { id: 'mpesa', name: 'M-Pesa', icon: Smartphone, description: 'Pagamento rápido via M-Pesa' },
@@ -335,8 +408,6 @@ const handleAddToCart = () => {
       </div>
     );
   }
-
-  const maxQuantity = selectedTicket ? Math.min(selectedTicket.availableQuantity, 10) : 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -467,19 +538,20 @@ const handleAddToCart = () => {
                     <p className="text-muted-foreground">Não há bilhetes disponíveis para este evento.</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {event.ticketTypes.map((ticket) => {
                       const typeColors = getTicketTypeColor(ticket.type);
+                      const quantity = ticketQuantities[ticket.id] || 0;
+                      const maxQuantity = Math.min(ticket.availableQuantity, 10);
                       
                       return (
                         <div
                           key={ticket.id}
-                          className={`border-2 rounded-lg p-6 cursor-pointer transition-all ${
-                            selectedTicketType === ticket.id
+                          className={`border-2 rounded-lg p-6 transition-all ${
+                            quantity > 0
                               ? 'border-primary bg-primary/5'
                               : `border-border hover:border-primary/50 ${typeColors.border}`
                           } ${ticket.availableQuantity === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          onClick={() => ticket.availableQuantity > 0 && setSelectedTicketType(ticket.id)}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -488,8 +560,10 @@ const handleAddToCart = () => {
                                 <span className={`px-3 py-1 text-xs font-medium rounded-full ${typeColors.bg} ${typeColors.text}`}>
                                   {ticket.type.toUpperCase()}
                                 </span>
-                                {selectedTicketType === ticket.id && (
-                                  <CheckCircle className="w-5 h-5 text-primary" />
+                                {quantity > 0 && (
+                                  <span className="px-2 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">
+                                    {quantity} selecionado{quantity > 1 ? 's' : ''}
+                                  </span>
                                 )}
                               </div>
                               
@@ -502,6 +576,7 @@ const handleAddToCart = () => {
                                 <span className={`font-medium ${ticket.availableQuantity < 10 ? 'text-orange-500' : 'text-green-500'}`}>
                                   {ticket.availableQuantity} bilhetes disponíveis
                                 </span>
+                                <span className="text-xs ml-2">(máx. {maxQuantity} por compra)</span>
                               </div>
                               
                               {/* 🔥 BENEFÍCIOS - APENAS CHECKCIRCLE */}
@@ -511,7 +586,6 @@ const handleAddToCart = () => {
                                   <ul className="space-y-2">
                                     {ticket.benefits.map((benefit, index) => (
                                       <li key={benefit.id || index} className="flex items-center gap-3 text-sm">
-                                        {/* ✅ APENAS CHECKCIRCLE */}
                                         <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                                         <div>
                                           <span className="font-medium text-foreground">{benefit.name}</span>
@@ -530,6 +604,44 @@ const handleAddToCart = () => {
                                 </div>
                               )}
                               
+                              {/* 🔥 CONTROLE DE QUANTIDADE PARA CADA BILHETE */}
+                              <div className="mt-6 pt-4 border-t border-border">
+                                <label className="block text-sm font-medium text-foreground mb-3">
+                                  Quantidade
+                                </label>
+                                <div className="flex items-center gap-4">
+                                  <div className="flex items-center border border-border rounded-lg">
+                                    <button
+                                      onClick={() => decreaseQuantity(ticket.id)}
+                                      className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                                      disabled={quantity <= 0}
+                                    >
+                                      <Minus className="w-4 h-4" />
+                                    </button>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max={maxQuantity}
+                                      value={quantity}
+                                      onChange={(e) => setQuantity(ticket.id, parseInt(e.target.value) || 0)}
+                                      className="px-4 py-2 font-medium text-foreground w-16 text-center border-0 bg-transparent focus:outline-none"
+                                    />
+                                    <button
+                                      onClick={() => increaseQuantity(ticket.id)}
+                                      className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                                      disabled={quantity >= maxQuantity}
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                  <div className="text-sm text-muted-foreground">
+                                    <span className="font-medium text-foreground">
+                                      Subtotal: {(ticket.price * quantity).toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              
                               <div className="text-xs text-muted-foreground mt-4 pt-3 border-t border-border">
                                 <strong>Último dia para pagamento:</strong>{' '}
                                 {new Date(ticket.lastDayPayment).toLocaleDateString('pt-MZ', {
@@ -543,39 +655,6 @@ const handleAddToCart = () => {
                         </div>
                       );
                     })}
-                  </div>
-                )}
-                
-                {/* Quantidade */}
-                {selectedTicket && selectedTicket.availableQuantity > 0 && (
-                  <div className="mt-6 pt-6 border-t border-border">
-                    <label className="block text-sm font-medium text-foreground mb-3">
-                      Quantidade
-                    </label>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center border border-border rounded-lg">
-                        <button
-                          onClick={() => setTicketQuantity(Math.max(1, ticketQuantity - 1))}
-                          className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                          disabled={ticketQuantity <= 1}
-                        >
-                          -
-                        </button>
-                        <span className="px-4 py-2 font-medium text-foreground min-w-12 text-center">
-                          {ticketQuantity}
-                        </span>
-                        <button
-                          onClick={() => setTicketQuantity(Math.min(maxQuantity, ticketQuantity + 1))}
-                          className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                          disabled={ticketQuantity >= maxQuantity}
-                        >
-                          +
-                        </button>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        Máximo {maxQuantity} bilhetes por compra
-                      </span>
-                    </div>
                   </div>
                 )}
               </div>
@@ -593,68 +672,78 @@ const handleAddToCart = () => {
               
               {/* Resumo do Pedido */}
               <div className="bg-card border border-border rounded-xl p-6">
-                <h2 className="text-xl font-semibold text-foreground mb-4">Resumo do Pedido</h2>
+                <h2 className="text-xl font-semibold text-foreground mb-4">
+                  Resumo do Pedido {totalItems > 0 && `(${totalItems} item${totalItems > 1 ? 's' : ''})`}
+                </h2>
                 
-                <div className="space-y-3 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      {selectedTicket?.name} × {ticketQuantity}
-                    </span>
-                    <span className="text-foreground font-medium">
-                      {((selectedTicket?.price || 0) * ticketQuantity).toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}
-                    </span>
-                  </div>
-                  
-                  {/* <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Taxa de serviço (5%)</span>
-                    <span className="text-foreground">{serviceFee.toFixed(2)} MZN</span>
-                  </div> */}
-                </div>
-                
-                <div className="border-t border-border pt-4">
-                  <div className="flex justify-between items-center text-lg font-bold text-foreground">
-                    <span>Total</span>
-                    <span>{total.toFixed(2)} MZN</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Método de Pagamento */}
-              <div className="bg-card border border-border rounded-xl p-6">
-                <h2 className="text-xl font-semibold text-foreground mb-4">Método de Pagamento</h2>
-                
-                <div className="space-y-3">
-                  {paymentMethods.map((method) => (
-                    <div
-                      key={method.id}
-                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                        selectedPayment === method.id
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                      onClick={() => setSelectedPayment(method.id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <method.icon className="w-5 h-5 text-primary" />
-                        <div className="flex-1">
-                          <div className="font-medium text-foreground">{method.name}</div>
-                          <div className="text-sm text-muted-foreground">{method.description}</div>
+                {cartItems.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Nenhum bilhete selecionado</p>
+                ) : (
+                  <>
+                    <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
+                      {cartItems.map((item) => (
+                        <div key={item.ticketId} className="flex justify-between items-start text-sm pb-2 border-b border-border/50">
+                          <div className="flex-1">
+                            <div className="font-medium text-foreground">{item.name}</div>
+                            <div className="text-muted-foreground">
+                              {item.quantity} × {item.price.toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}
+                            </div>
+                          </div>
+                          <div className="text-foreground font-medium text-right">
+                            {(item.price * item.quantity).toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}
+                          </div>
                         </div>
-                        {selectedPayment === method.id && (
-                          <CheckCircle className="w-5 h-5 text-primary" />
-                        )}
+                      ))}
+                    </div>
+                    
+                    <div className="border-t border-border pt-4">
+                      <div className="flex justify-between items-center text-lg font-bold text-foreground">
+                        <span>Total</span>
+                        <span>{total.toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}</span>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </>
+                )}
               </div>
+
+              {/* Método de Pagamento - Só mostra se houver itens no carrinho */}
+              {cartItems.length > 0 && (
+                <div className="bg-card border border-border rounded-xl p-6">
+                  <h2 className="text-xl font-semibold text-foreground mb-4">Método de Pagamento</h2>
+                  
+                  <div className="space-y-3">
+                    {paymentMethods.map((method) => (
+                      <div
+                        key={method.id}
+                        className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                          selectedPayment === method.id
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                        onClick={() => setSelectedPayment(method.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <method.icon className="w-5 h-5 text-primary" />
+                          <div className="flex-1">
+                            <div className="font-medium text-foreground">{method.name}</div>
+                            <div className="text-sm text-muted-foreground">{method.description}</div>
+                          </div>
+                          {selectedPayment === method.id && (
+                            <CheckCircle className="w-5 h-5 text-primary" />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Botões de Ação */}
               <div className="space-y-4">
                 {/* Botão de Compra Imediata */}
                 <button
                   onClick={handlePurchase}
-                  disabled={isProcessing || !selectedTicket || selectedTicket.availableQuantity === 0 || ticketQuantity > selectedTicket.availableQuantity}
+                  disabled={isProcessing || cartItems.length === 0}
                   className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-bold text-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
                 >
                   {isProcessing ? (
@@ -662,21 +751,18 @@ const handleAddToCart = () => {
                       <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                       Processando...
                     </>
-                  ) : !selectedTicket ? (
-                    'Selecione um bilhete'
-                  ) : selectedTicket.availableQuantity === 0 ? (
-                    'Bilhetes Esgotados'
+                  ) : cartItems.length === 0 ? (
+                    'Selecione bilhetes'
                   ) : (
-                    `Comprar ${ticketQuantity} Bilhete${ticketQuantity > 1 ? 's' : ''} - ${total.toFixed(2)} MZN`
+                    `Comprar ${totalItems} Bilhete${totalItems > 1 ? 's' : ''} - ${total.toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}`
                   )}
                 </button>
 
                 {/* Botão Adicionar ao Carrinho */}
-                {event && selectedTicket && (
+                {event && cartItems.length > 0 && (
                   <ButtonCart
                     event={event}
-                    selectedTicket={selectedTicket}
-                    ticketQuantity={ticketQuantity}
+                    cartItems={cartItems}
                     onAddToCart={handleAddToCart}
                   />
                 )}
@@ -690,7 +776,7 @@ const handleAddToCart = () => {
                       exit={{ opacity: 0, y: 10 }}
                       className="p-4 bg-green-100 border border-green-300 rounded-lg text-green-800 text-center"
                     >
-                      ✅ Adicionado ao carrinho!
+                      ✅ Adicionado ao carrinho! ({totalItems} bilhete{totalItems > 1 ? 's' : ''})
                     </motion.div>
                   )}
                 </AnimatePresence>

@@ -325,9 +325,9 @@ export default function CheckoutPage() {
                 <span className="font-medium">Total Pago:</span>
                 <span className="font-bold">{formatCurrency(cart.totalPrice)}</span>
               </div>
-              <div className="text-sm text-green-700">
+              {/* <div className="text-sm text-green-700">
                 ID do Carrinho: {cart.id}
-              </div>
+              </div> */}
             </div>
             <div className="mt-8 space-y-4">
               <Link
@@ -363,9 +363,9 @@ export default function CheckoutPage() {
                 <span className="font-medium">Valor:</span>
                 <span className="font-bold">{formatCurrency(cart.totalPrice)}</span>
               </div>
-              <div className="text-sm text-red-700">
+              {/* <div className="text-sm text-red-700">
                 ID do Carrinho: {cart.id}
-              </div>
+              </div> */}
             </div>
             <div className="mt-8 space-y-4">
               <Link

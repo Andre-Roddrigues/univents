@@ -121,13 +121,13 @@ const EventCard: React.FC<EventCardProps> = ({
           {/* Event Image com Link para detalhes */}
           <EventDetailsLink>
             <div className="block relative h-48 bg-gradient-to-br from-primary/20 to-secondary/20 overflow-hidden cursor-pointer">
-              {event.featured && (
+              {/* {event.featured && (
                 <div className="absolute top-3 left-3 z-10">
                   <span className="px-3 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">
                     Em Destaque
                   </span>
                 </div>
-              )}
+              )} */}
               
               {event.ticketsLeft < 50 && (
                 <div className="absolute top-3 right-3 z-10">

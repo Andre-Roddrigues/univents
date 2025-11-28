@@ -23,4 +23,7 @@ export const routes = {
   payment_mpesa: API_MPESA,
   carts_create: `${API_BASE_URL}/carts/create`,
   carts_list: `${API_BASE_URL}/carts/list-user-carts`,
+  cart_remove: `${API_BASE_URL}/carts/remove-items`,
+  cart_update: `${API_BASE_URL}/carts/update-items`,
+  cart_clear: `${API_BASE_URL}/carts/clear-cart`,
 };
