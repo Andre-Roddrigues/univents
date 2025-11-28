@@ -7,7 +7,7 @@ import {
   Ticket, RefreshCw, Loader, Ban, LogIn
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { listCarts, updateCart, deleteCart } from '@/lib/actions/cart-actions';
+import { listCarts, updateCartItems, deleteCart } from '@/lib/actions/cart-actions';
 
 // Tipos conforme o backend
 interface CartItem {
@@ -95,104 +95,106 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
     }
   };
 
-  // ===========================================
-  // 🔄 Atualizar quantidade de um item
-  // ===========================================
-  const updateCartItem = async (cartId: string, itemId: string, newQuantity: number) => {
-    if (newQuantity < 1) return;
+ // ===========================================
+// 🔄 Atualizar quantidade de um item
+// ===========================================
+const updateCartItem = async (cartId: string, itemId: string, newQuantity: number) => {
+  if (newQuantity < 1) return;
 
-    setUpdatingItem(itemId);
+  setUpdatingItem(itemId);
 
-    try {
-      const cart = carts.find(c => c.id === cartId);
-      if (!cart) return;
+  try {
+    const cart = carts.find(c => c.id === cartId);
+    if (!cart) return;
 
-      const updatedItems = cart.cartItems.map(item =>
-        item.id === itemId ? { ...item, quantity: newQuantity } : item
-      );
+    const updatedItems = cart.cartItems.map(item =>
+      item.id === itemId ? { ...item, quantity: newQuantity } : item
+    );
 
-      const payload = {
-        items: updatedItems.map(item => ({
-          ticketId: item.ticketId,
-          quantity: item.quantity.toString()
-        }))
-      };
+    const payload = {
+      items: updatedItems.map(item => ({
+        ticketId: item.ticketId,
+        quantity: item.quantity.toString()
+      }))
+    };
 
-      const result = await updateCart(cartId, payload);
+    // ✅ CORREÇÃO: Use updateCartItems em vez de updateCart
+    const result = await updateCartItems(cartId, payload);
 
-      if (result.success) {
-        await loadCarts();
-      } else {
-        // Verificar se é erro de autenticação
-        if (result.message?.includes('Token não fornecido') || result.message?.includes('401')) {
-          setError("Sem sessão iniciada");
-        } else {
-          setError(result.message || "Erro ao atualizar item");
-        }
-      }
-    } catch (err: any) {
-      console.error("Erro ao atualizar item:", err);
-      
+    if (result.success) {
+      await loadCarts();
+    } else {
       // Verificar se é erro de autenticação
-      if (err.message?.includes('Token não fornecido') || err.message?.includes('401') || err.response?.status === 401) {
+      if (result.message?.includes('Token não fornecido') || result.message?.includes('401')) {
         setError("Sem sessão iniciada");
       } else {
-        setError("Erro ao atualizar item do carrinho");
+        setError(result.message || "Erro ao atualizar item");
       }
-    } finally {
-      setUpdatingItem(null);
     }
-  };
+  } catch (err: any) {
+    console.error("Erro ao atualizar item:", err);
+    
+    // Verificar se é erro de autenticação
+    if (err.message?.includes('Token não fornecido') || err.message?.includes('401') || err.response?.status === 401) {
+      setError("Sem sessão iniciada");
+    } else {
+      setError("Erro ao atualizar item do carrinho");
+    }
+  } finally {
+    setUpdatingItem(null);
+  }
+};
 
-  // ===========================================
-  // ❌ Remover item ou carrinho
-  // ===========================================
-  const removeCartItem = async (cartId: string, itemId: string) => {
-    setUpdatingItem(itemId);
+// ===========================================
+// ❌ Remover item ou carrinho
+// ===========================================
+const removeCartItem = async (cartId: string, itemId: string) => {
+  setUpdatingItem(itemId);
 
-    try {
-      const cart = carts.find(c => c.id === cartId);
-      if (!cart) return;
+  try {
+    const cart = carts.find(c => c.id === cartId);
+    if (!cart) return;
 
-      if (cart.cartItems.length === 1) {
-        await removeCart(cartId);
-        return;
-      }
+    if (cart.cartItems.length === 1) {
+      await removeCart(cartId);
+      return;
+    }
 
-      const updatedItems = cart.cartItems.filter(i => i.id !== itemId);
+    const updatedItems = cart.cartItems.filter(i => i.id !== itemId);
 
-      const payload = {
-        items: updatedItems.map(item => ({
-          ticketId: item.ticketId,
-          quantity: item.quantity.toString()
-        }))
-      };
+    const payload = {
+      items: updatedItems.map(item => ({
+        ticketId: item.ticketId,
+        quantity: item.quantity.toString()
+      }))
+    };
 
-      const result = await updateCart(cartId, payload);
+    // ✅ CORREÇÃO: Use updateCartItems em vez de updateCart
+    const result = await updateCartItems(cartId, payload);
 
-      if (result.success) {
-        await loadCarts();
-      } else {
-        // Verificar se é erro de autenticação
-        if (result.message?.includes('Token não fornecido') || result.message?.includes('401')) {
-          setError("Sem sessão iniciada");
-        } else {
-          setError(result.message || "Erro ao remover item");
-        }
-      }
-    } catch (err: any) {
-      console.error("Erro ao remover item:", err);
-      
+    if (result.success) {
+      await loadCarts();
+    } else {
       // Verificar se é erro de autenticação
-      if (err.message?.includes('Token não fornecido') || err.message?.includes('401') || err.response?.status === 401) {
+      if (result.message?.includes('Token não fornecido') || result.message?.includes('401')) {
         setError("Sem sessão iniciada");
       } else {
-        setError("Erro ao remover item do carrinho");
+        setError(result.message || "Erro ao remover item");
       }
-    } finally {
-      setUpdatingItem(null);
     }
-  };
+  } catch (err: any) {
+    console.error("Erro ao remover item:", err);
+    
+    // Verificar se é erro de autenticação
+    if (err.message?.includes('Token não fornecido') || err.message?.includes('401') || err.response?.status === 401) {
+      setError("Sem sessão iniciada");
+    } else {
+      setError("Erro ao remover item do carrinho");
+    }
+  } finally {
+    setUpdatingItem(null);
+  }
+};
 
   const removeCart = async (cartId: string) => {
     setDeletingCart(cartId);
