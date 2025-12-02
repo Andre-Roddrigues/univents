@@ -21,6 +21,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ButtonCart from '@/components/navbar/ButtonCart';
 import { createCart } from '@/lib/actions/cart-actions';
+import ButtonOpenModalPay from '@/components/Eventos/comprar/ButtonOpenModalPay';
 
 // Interface baseada na API real
 interface ApiEvent {
@@ -739,7 +740,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
               )}
 
               {/* Botões de Ação */}
-              <div className="space-y-4">
+              <div className="space-y-4 mt-12">
                 {/* Botão de Compra Imediata */}
                 {/* <button
                   onClick={handlePurchase}
@@ -757,6 +758,21 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                     `Comprar ${totalItems} Bilhete${totalItems > 1 ? 's' : ''} - ${total.toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}`
                   )}
                 </button> */}
+                 <ButtonOpenModalPay
+    event={{
+      id: event.id,
+      title: event.title
+    }}
+    tickets={event.ticketTypes.map(ticket => ({
+      id: ticket.id,
+      name: ticket.name,
+      price: ticket.price,
+      type: ticket.type,
+      quantity: ticketQuantities[ticket.id] || 0
+    }))}
+    fullWidth
+    size="lg"
+  />
 
                 {/* Botão Adicionar ao Carrinho */}
                 {event && cartItems.length > 0 && (

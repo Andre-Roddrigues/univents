@@ -13,9 +13,8 @@ import {
   Copy,
   Check
 } from 'lucide-react';
-import { createPayment, uploadTransferProof } from '@/lib/actions/payment-actions';
-import { createCart } from '@/lib/actions/cart-actions';
 import { toast } from 'sonner';
+import { directPayment } from '@/lib/actions/payment-direct-actions';
 
 interface ModalPayProps {
   isOpen: boolean;
@@ -24,33 +23,46 @@ interface ModalPayProps {
     id: string;
     title: string;
   };
-  ticket: {
+  tickets: Array<{
     id: string;
     name: string;
     price: number;
     type: string;
-  };
-  quantity: number;
-  cartId: string;
+    quantity: number;
+  }>;
 }
 
 interface PaymentMethod {
-  id: 'mpesa' | 'transfer';
+  id: 'mpesa' | 'transference';
   name: string;
   icon: any;
   description: string;
 }
 
-export default function ModalPay({ isOpen, onClose, event, ticket, quantity }: ModalPayProps) {
-  const [selectedPayment, setSelectedPayment] = useState<'mpesa' | 'transfer'>('mpesa');
+export default function ModalPay({ isOpen, onClose, event, tickets }: ModalPayProps) {
+  const [selectedPayment, setSelectedPayment] = useState<'mpesa' | 'transference'>('mpesa');
   const [processing, setProcessing] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [proofImage, setProofImage] = useState<File | null>(null);
   const [referenceNumber, setReferenceNumber] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [cartId, setCartId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
-  const totalAmount = ticket.price * quantity;
+  // Detectar tamanho da tela
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Calcular totais
+  const totalAmount = tickets.reduce((total, ticket) => total + (ticket.price * ticket.quantity), 0);
+  const totalItems = tickets.reduce((total, ticket) => total + ticket.quantity, 0);
 
   const paymentMethods: PaymentMethod[] = [
     { 
@@ -60,7 +72,7 @@ export default function ModalPay({ isOpen, onClose, event, ticket, quantity }: M
       description: 'Pagamento rápido via M-Pesa' 
     },
     { 
-      id: 'transfer', 
+      id: 'transference', 
       name: 'Transferência Bancária', 
       icon: CreditCard, 
       description: 'Transferência com comprovativo' 
@@ -88,35 +100,14 @@ export default function ModalPay({ isOpen, onClose, event, ticket, quantity }: M
     },
   };
 
-  // Criar carrinho automaticamente quando o modal abre
-  useEffect(() => {
-    if (isOpen && !cartId) {
-      createCartAutomatically();
-    }
-  }, [isOpen]);
-
-  const createCartAutomatically = async () => {
-    try {
-      const payload = {
-        items: [{
-          ticketId: ticket.id,
-          quantity: quantity.toString()
-        }]
-      };
-
-      const result = await createCart(payload);
-      
-      if (result.success && result.data?.id) {
-        setCartId(result.data.id);
-      } else {
-        toast.error('Erro ao criar carrinho');
-        onClose();
-      }
-    } catch (error) {
-      console.error('Erro ao criar carrinho:', error);
-      toast.error('Erro ao processar pedido');
-      onClose();
-    }
+  // Preparar items no formato correto
+  const getPaymentItems = () => {
+    return tickets
+      .filter(ticket => ticket.quantity > 0)
+      .map(ticket => ({
+        ticketId: ticket.id,
+        quantity: ticket.quantity.toString()
+      }));
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -144,14 +135,31 @@ export default function ModalPay({ isOpen, onClose, event, ticket, quantity }: M
     });
   };
 
+  const validatePhoneNumber = (phone: string) => {
+    const cleanedPhone = phone.replace(/\D/g, '');
+    if (cleanedPhone.length !== 9) {
+      return false;
+    }
+    if (!cleanedPhone.startsWith('84') && !cleanedPhone.startsWith('85')) {
+      return false;
+    }
+    return true;
+  };
+
   const processMpesaPayment = async () => {
     if (!phoneNumber) {
       toast.error('Por favor, insira o número de telefone');
       return;
     }
 
-    if (!cartId) {
-      toast.error('Erro ao processar pagamento. Tente novamente.');
+    if (!validatePhoneNumber(phoneNumber)) {
+      toast.error('Número de telefone inválido. Deve começar com 84 ou 85 e ter 9 dígitos');
+      return;
+    }
+
+    const paymentItems = getPaymentItems();
+    if (paymentItems.length === 0) {
+      toast.error('Nenhum item selecionado');
       return;
     }
 
@@ -161,19 +169,22 @@ export default function ModalPay({ isOpen, onClose, event, ticket, quantity }: M
     try {
       const payload = {
         paymentMethod: "mpesa" as const,
-        cartId: cartId,
-        phoneNumber: phoneNumber
+        phoneNumber: phoneNumber.trim(),
+        items: paymentItems
       };
 
-      const result = await createPayment(payload);
+      console.log('🔄 Enviando payload M-Pesa:', payload);
+
+      const result = await directPayment(payload);
       toast.dismiss(loadingToast);
 
+      console.log('📦 Resposta M-Pesa:', result);
+
       if (result.success) {
-        toast.success(result.message || 'Pagamento realizado com sucesso!');
+        toast.success(result.mensagem || 'Pagamento realizado com sucesso!');
         onClose();
-        // Redirecionar para página de sucesso se necessário
       } else {
-        toast.error(result.message || 'Erro ao processar pagamento');
+        toast.error(result.mensagem || 'Erro ao processar pagamento');
       }
     } catch (error) {
       toast.dismiss(loadingToast);
@@ -195,34 +206,45 @@ export default function ModalPay({ isOpen, onClose, event, ticket, quantity }: M
       return;
     }
 
-    if (!cartId) return;
+    const paymentItems = getPaymentItems();
+    if (paymentItems.length === 0) {
+      toast.error('Nenhum item selecionado');
+      return;
+    }
 
     setProcessing(true);
-    const loadingToast = toast.loading('Enviando comprovativo...');
+    const loadingToast = toast.loading('Processando transferência...');
 
     try {
-      const result = await uploadTransferProof(cartId, referenceNumber, proofImage);
+      const payload = {
+        paymentMethod: "transference" as const,
+        phoneNumber: undefined,
+        items: paymentItems
+      };
+
+      console.log('🔄 Enviando payload Transferência:', payload);
+      
+      const result = await directPayment(payload);
       toast.dismiss(loadingToast);
 
       if (result.success) {
-        toast.success(result.message || 'Comprovativo enviado com sucesso!');
+        toast.success('Pedido de transferência enviado! Envie o comprovativo.');
         onClose();
-        // Redirecionar para página pendente se necessário
       } else {
-        toast.error(result.message || 'Erro ao enviar comprovativo');
+        toast.error(result.mensagem || 'Erro ao processar transferência');
       }
     } catch (error) {
       toast.dismiss(loadingToast);
       toast.error('Erro inesperado. Tente novamente.');
-      console.error('Erro ao enviar comprovativo:', error);
+      console.error('Erro na transferência:', error);
     } finally {
       setProcessing(false);
     }
   };
 
   const handlePayment = async () => {
-    if (!cartId) {
-      toast.error('Aguarde o carregamento do pedido');
+    if (totalItems === 0) {
+      toast.error('Selecione pelo menos um bilhete');
       return;
     }
 
@@ -255,50 +277,66 @@ export default function ModalPay({ isOpen, onClose, event, ticket, quantity }: M
             onClick={onClose}
           />
 
-          {/* Modal */}
+          {/* Modal - Layout Responsivo */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6"
           >
-            <div className="bg-background rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-              {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-border">
-                <div>
-                  <h2 className="text-xl font-bold text-foreground">Finalizar Compra</h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {event.title} • {ticket.name} × {quantity}
+            <div className="bg-background rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-full sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] flex flex-col">
+              
+              {/* Header - Responsivo */}
+              <div className="flex items-center justify-between mt-12 p-4 sm:p-6 border-b border-border">
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg sm:text-xl font-bold text-foreground truncate">
+                    Finalizar Compra
+                  </h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1 truncate">
+                    {event.title} • {totalItems} {totalItems === 1 ? 'bilhete' : 'bilhetes'}
                   </p>
                 </div>
                 <button 
                   onClick={onClose}
-                  className="p-2 hover:bg-muted rounded-lg transition-colors"
+                  className="p-2 hover:bg-muted rounded-lg transition-colors flex-shrink-0 ml-2"
+                  aria-label="Fechar modal"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
-                <div className="p-6 space-y-6">
-                  {/* Resumo */}
+              {/* Conteúdo Principal - Scrollável */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+                  
+                  {/* Resumo - Responsivo */}
                   <div className="bg-card border border-border rounded-lg p-4">
-                    <h3 className="font-semibold text-foreground mb-3">Resumo do Pedido</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Evento:</span>
-                        <span className="font-medium">{event.title}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Bilhete:</span>
-                        <span className="font-medium">{ticket.name}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Quantidade:</span>
-                        <span className="font-medium">{quantity}</span>
-                      </div>
-                      <div className="border-t border-border pt-2 mt-2">
-                        <div className="flex justify-between text-lg font-bold">
+                    <h3 className="font-semibold text-foreground mb-3 text-base sm:text-lg">
+                      Resumo do Pedido
+                    </h3>
+                    <div className="space-y-3">
+                      {tickets.map((ticket, index) => (
+                        ticket.quantity > 0 && (
+                          <div 
+                            key={ticket.id} 
+                            className="flex justify-between items-start sm:items-center pb-3 border-b border-border last:border-0 last:pb-0"
+                          >
+                            <div className="flex-1 min-w-0 pr-2">
+                              <div className="font-medium text-sm sm:text-base truncate">
+                                {ticket.name}
+                              </div>
+                              <div className="text-xs sm:text-sm text-muted-foreground mt-1">
+                                {ticket.quantity} × {formatCurrency(ticket.price)}
+                              </div>
+                            </div>
+                            <div className="font-medium text-sm sm:text-base whitespace-nowrap">
+                              {formatCurrency(ticket.price * ticket.quantity)}
+                            </div>
+                          </div>
+                        )
+                      ))}
+                      <div className="pt-3 mt-3 border-t border-border">
+                        <div className="flex justify-between text-base sm:text-lg font-bold">
                           <span>Total:</span>
                           <span>{formatCurrency(totalAmount)}</span>
                         </div>
@@ -306,72 +344,111 @@ export default function ModalPay({ isOpen, onClose, event, ticket, quantity }: M
                     </div>
                   </div>
 
-                  {/* Método de Pagamento */}
+                  {/* Método de Pagamento - Responsivo */}
                   <div className="space-y-4">
-                    <h3 className="font-semibold text-foreground">Método de Pagamento</h3>
+                    <h3 className="font-semibold text-foreground text-base sm:text-lg">
+                      Método de Pagamento
+                    </h3>
                     
-                    <div className="grid grid-cols-2 gap-3">
+                    {/* Grid responsivo */}
+                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 sm:gap-3">
                       {paymentMethods.map((method) => (
                         <button
                           key={method.id}
                           onClick={() => setSelectedPayment(method.id)}
-                          className={`p-4 border-2 rounded-lg text-left transition-all ${
+                          className={`p-3 sm:p-4 border-2 rounded-lg text-left transition-all ${
                             selectedPayment === method.id
                               ? 'border-primary bg-primary/5'
                               : 'border-border hover:border-primary/50'
                           }`}
                         >
-                          <div className="flex items-center gap-3">
-                            <method.icon className="w-5 h-5 text-primary" />
-                            <div>
-                              <div className="font-medium text-foreground">{method.name}</div>
-                              <div className="text-sm text-muted-foreground">{method.description}</div>
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <method.icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-foreground text-sm sm:text-base truncate">
+                                {method.name}
+                              </div>
+                              <div className="text-xs sm:text-sm text-muted-foreground truncate">
+                                {method.description}
+                              </div>
                             </div>
                             {selectedPayment === method.id && (
-                              <CheckCircle className="w-5 h-5 text-primary ml-auto" />
+                              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                             )}
                           </div>
                         </button>
                       ))}
                     </div>
 
-                    {/* Campos M-Pesa */}
+                    {/* Campos M-Pesa - Responsivo */}
                     {selectedPayment === 'mpesa' && (
-                      <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
-                        <h4 className="font-medium text-foreground">Pagamento via M-Pesa</h4>
+                      <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 bg-muted/30 rounded-lg">
+                        <h4 className="font-medium text-foreground text-sm sm:text-base">
+                          Pagamento via M-Pesa
+                        </h4>
                         <div>
-                          <label className="block text-sm font-medium text-foreground mb-2">
-                            Número de Telefone M-Pesa
+                          <label className="block text-xs sm:text-sm font-medium text-foreground mb-1 sm:mb-2">
+                            Número de Telefone M-Pesa *
                           </label>
-                          <input
-                            type="tel"
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            placeholder="84 123 4567"
-                            className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                          />
+                          <div className="flex flex-col xs:flex-row gap-2">
+                            <div className="w-full xs:w-auto">
+                              <select 
+                                className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                                value={phoneNumber.slice(0, 2)}
+                                onChange={(e) => {
+                                  const prefix = e.target.value;
+                                  const rest = phoneNumber.slice(2);
+                                  setPhoneNumber(prefix + rest);
+                                }}
+                              >
+                                <option value="84">84</option>
+                                <option value="85">85</option>
+                              </select>
+                            </div>
+                            <input
+                              type="tel"
+                              value={phoneNumber.slice(2)}
+                              onChange={(e) => {
+                                const prefix = phoneNumber.slice(0, 2);
+                                const numbers = e.target.value.replace(/\D/g, '');
+                                setPhoneNumber(prefix + numbers.slice(0, 7));
+                              }}
+                              placeholder="123 4567"
+                              className="flex-1 w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1 sm:mt-2">
+                            Digite o número completo (ex: 84 123 4567)
+                          </p>
                         </div>
                       </div>
                     )}
 
-                    {/* Campos Transferência */}
-                    {selectedPayment === 'transfer' && (
-                      <div className="space-y-6">
+                    {/* Campos Transferência - Responsivo */}
+                    {selectedPayment === 'transference' && (
+                      <div className="space-y-4 sm:space-y-6">
                         {/* Contas Bancárias */}
-                        <div className="space-y-4">
-                          <h4 className="font-medium text-foreground">Contas Bancárias</h4>
-                          <div className="space-y-3">
+                        <div className="space-y-3 sm:space-y-4">
+                          <h4 className="font-medium text-foreground text-sm sm:text-base">
+                            Contas Bancárias
+                          </h4>
+                          <div className="space-y-2 sm:space-y-3">
                             {Object.entries(bankAccounts).map(([key, bank]) => (
-                              <div key={key} className="bg-card border border-border rounded-lg p-4">
-                                <h5 className="font-semibold text-foreground mb-3">{bank.name}</h5>
-                                <div className="space-y-2 text-sm">
+                              <div key={key} className="bg-card border border-border rounded-lg p-3 sm:p-4">
+                                <h5 className="font-semibold text-foreground text-sm sm:text-base mb-2 sm:mb-3 truncate">
+                                  {bank.name}
+                                </h5>
+                                <div className="space-y-2 text-xs sm:text-sm">
                                   <div className="flex justify-between items-center">
                                     <span className="text-muted-foreground">Conta:</span>
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-mono">{bank.conta}</span>
+                                    <div className="flex items-center gap-1 sm:gap-2">
+                                      <span className="font-mono text-xs truncate max-w-[100px] sm:max-w-[120px]">
+                                        {bank.conta}
+                                      </span>
                                       <button
                                         onClick={() => copyToClipboard(bank.conta, `conta-${key}`)}
-                                        className="p-1 hover:bg-muted rounded transition-colors"
+                                        className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
+                                        aria-label="Copiar número da conta"
                                       >
                                         {copiedField === `conta-${key}` ? (
                                           <Check className="w-3 h-3 text-green-600" />
@@ -383,11 +460,14 @@ export default function ModalPay({ isOpen, onClose, event, ticket, quantity }: M
                                   </div>
                                   <div className="flex justify-between items-center">
                                     <span className="text-muted-foreground">NIB:</span>
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-mono">{bank.nib}</span>
+                                    <div className="flex items-center gap-1 sm:gap-2">
+                                      <span className="font-mono text-xs truncate max-w-[100px] sm:max-w-[120px]">
+                                        {bank.nib}
+                                      </span>
                                       <button
                                         onClick={() => copyToClipboard(bank.nib, `nib-${key}`)}
-                                        className="p-1 hover:bg-muted rounded transition-colors"
+                                        className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
+                                        aria-label="Copiar NIB"
                                       >
                                         {copiedField === `nib-${key}` ? (
                                           <Check className="w-3 h-3 text-green-600" />
@@ -397,7 +477,7 @@ export default function ModalPay({ isOpen, onClose, event, ticket, quantity }: M
                                       </button>
                                     </div>
                                   </div>
-                                  <div className="text-muted-foreground text-xs">
+                                  <div className="text-muted-foreground text-xs truncate">
                                     Titular: {bank.titular}
                                   </div>
                                 </div>
@@ -406,85 +486,51 @@ export default function ModalPay({ isOpen, onClose, event, ticket, quantity }: M
                           </div>
                         </div>
 
-                        {/* Instruções Emola */}
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                          <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-                            <CreditCard className="w-4 h-4" />
-                            Como pagar usando Emola:
-                          </h4>
-                          <div className="space-y-1 text-sm text-blue-800">
-                            <div className="flex gap-2">
-                              <span className="font-semibold">1.</span>
-                              <span>Digite *898#</span>
-                            </div>
-                            <div className="flex gap-2">
-                              <span className="font-semibold">2.</span>
-                              <span>Opção 9 → Pagamentos</span>
-                            </div>
-                            <div className="flex gap-2">
-                              <span className="font-semibold">3.</span>
-                              <span>Opção 1 → Comerciante</span>
-                            </div>
-                            <div className="flex gap-2">
-                              <span className="font-semibold">4.</span>
-                              <span>ID: <strong>801335</strong></span>
-                            </div>
-                            <div className="flex gap-2">
-                              <span className="font-semibold">5.</span>
-                              <span>Digite o valor: <strong>{totalAmount} MT</strong></span>
-                            </div>
-                            <div className="flex gap-2">
-                              <span className="font-semibold">6.</span>
-                              <span>Conteúdo: <strong>ticket</strong></span>
-                            </div>
-                            <div className="flex gap-2">
-                              <span className="font-semibold">7.</span>
-                              <span>Confirme Unitec Moçambique US</span>
-                            </div>
-                          </div>
-                        </div>
-
                         {/* Comprovativo */}
-                        <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
-                          <h4 className="font-medium text-foreground">Enviar Comprovativo</h4>
+                        <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 bg-muted/30 rounded-lg">
+                          <h4 className="font-medium text-foreground text-sm sm:text-base">
+                            Enviar Comprovativo
+                          </h4>
                           
-                          <div>
-                            <label className="block text-sm font-medium text-foreground mb-2">
-                              Número de Referência
-                            </label>
-                            <input
-                              type="text"
-                              value={referenceNumber}
-                              onChange={(e) => setReferenceNumber(e.target.value)}
-                              placeholder="Número da transferência"
-                              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-foreground mb-2">
-                              Comprovativo de Transferência
-                            </label>
-                            <div className="border-2 border-dashed border-border rounded-lg p-4 text-center">
-                              <input
-                                type="file"
-                                id="proof-upload"
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                                className="hidden"
-                              />
-                              <label
-                                htmlFor="proof-upload"
-                                className="cursor-pointer flex flex-col items-center gap-2"
-                              >
-                                <Upload className="w-8 h-8 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">
-                                  {proofImage ? proofImage.name : 'Clique para fazer upload'}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  PNG, JPG (max 5MB)
-                                </span>
+                          <div className="space-y-2">
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-foreground mb-1 sm:mb-2">
+                                Número de Referência *
                               </label>
+                              <input
+                                type="text"
+                                value={referenceNumber}
+                                onChange={(e) => setReferenceNumber(e.target.value)}
+                                placeholder="Número da transferência"
+                                className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-foreground mb-1 sm:mb-2">
+                                Comprovativo de Transferência *
+                              </label>
+                              <div className="border-2 border-dashed border-border rounded-lg p-3 sm:p-4 text-center">
+                                <input
+                                  type="file"
+                                  id="proof-upload"
+                                  accept="image/*"
+                                  onChange={handleImageUpload}
+                                  className="hidden"
+                                />
+                                <label
+                                  htmlFor="proof-upload"
+                                  className="cursor-pointer flex flex-col items-center gap-1 sm:gap-2"
+                                >
+                                  <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" />
+                                  <span className="text-xs sm:text-sm text-muted-foreground truncate max-w-full">
+                                    {proofImage ? proofImage.name : 'Clique para fazer upload'}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    PNG, JPG (max 5MB)
+                                  </span>
+                                </label>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -494,34 +540,57 @@ export default function ModalPay({ isOpen, onClose, event, ticket, quantity }: M
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="border-t border-border p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Shield className="w-4 h-4" />
-                    Pagamento 100% seguro
+              {/* Footer - Responsivo e Fixo */}
+              <div className="border-t border-border p-4 sm:p-6 bg-background sticky bottom-0">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                    <Shield className="w-4 h-4 flex-shrink-0" />
+                    <span>Pagamento 100% seguro</span>
                   </div>
-                  <div className="text-lg font-bold text-foreground">
+                  <div className="text-base sm:text-lg font-bold text-foreground whitespace-nowrap">
                     {formatCurrency(totalAmount)}
                   </div>
                 </div>
 
+                {/* Botão Principal - Grande e Acessível */}
                 <button
                   onClick={handlePayment}
-                  disabled={processing || !cartId || 
-                    (selectedPayment === 'mpesa' && !phoneNumber) ||
-                    (selectedPayment === 'transfer' && (!proofImage || !referenceNumber))}
-                  className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
+                  disabled={processing || 
+                    totalItems === 0 ||
+                    (selectedPayment === 'mpesa' && (!phoneNumber || !validatePhoneNumber(phoneNumber))) ||
+                    (selectedPayment === 'transference' && (!proofImage || !referenceNumber))}
+                  className="w-full py-3 sm:py-4 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base shadow-lg"
                 >
                   {processing ? (
                     <>
-                      <Loader className="w-5 h-5 animate-spin" />
-                      {selectedPayment === 'mpesa' ? 'Processando...' : 'Enviando...'}
+                      <Loader className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                      <span className="truncate">
+                        {selectedPayment === 'mpesa' ? 'Processando...' : 'Enviando...'}
+                      </span>
                     </>
                   ) : (
-                    `Pagar ${formatCurrency(totalAmount)}`
+                    <>
+                      <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                      <span className="truncate">
+                        Pagar {formatCurrency(totalAmount)}
+                      </span>
+                    </>
                   )}
                 </button>
+
+                {/* Debug apenas em desktop */}
+                {/* {process.env.NODE_ENV === 'development' && !isMobile && (
+                  <div className="mt-4 p-3 bg-gray-100 rounded-lg text-xs hidden sm:block">
+                    <div className="font-semibold mb-1">Payload que será enviado:</div>
+                    <pre className="whitespace-pre-wrap text-xs">
+                      {JSON.stringify({
+                        paymentMethod: selectedPayment,
+                        phoneNumber: selectedPayment === 'mpesa' ? phoneNumber : undefined,
+                        items: getPaymentItems()
+                      }, null, 2)}
+                    </pre>
+                  </div>
+                )} */}
               </div>
             </div>
           </motion.div>
