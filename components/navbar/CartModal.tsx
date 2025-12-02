@@ -236,7 +236,7 @@ const removeCartItem = async (cartId: string, itemId: string) => {
 
   const handleSignup = () => {
     onClose();
-    router.push('/signup'); // Ajuste o caminho conforme sua aplicação
+    router.push('/register'); // Ajuste o caminho conforme sua aplicação
   };
 
   // ===========================================
