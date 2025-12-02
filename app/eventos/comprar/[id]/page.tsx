@@ -741,7 +741,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
               {/* Botões de Ação */}
               <div className="space-y-4">
                 {/* Botão de Compra Imediata */}
-                <button
+                {/* <button
                   onClick={handlePurchase}
                   disabled={isProcessing || cartItems.length === 0}
                   className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-bold text-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
@@ -756,7 +756,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                   ) : (
                     `Comprar ${totalItems} Bilhete${totalItems > 1 ? 's' : ''} - ${total.toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}`
                   )}
-                </button>
+                </button> */}
 
                 {/* Botão Adicionar ao Carrinho */}
                 {event && cartItems.length > 0 && (
@@ -769,7 +769,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
 
                 {/* Feedback de adição ao carrinho */}
                 <AnimatePresence>
-                  {showCartFeedback && (
+                  {/* {showCartFeedback && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -778,7 +778,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                     >
                       ✅ Adicionado ao carrinho! ({totalItems} bilhete{totalItems > 1 ? 's' : ''})
                     </motion.div>
-                  )}
+                  )} */}
                 </AnimatePresence>
               </div>
 

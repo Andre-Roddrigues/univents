@@ -110,14 +110,14 @@ export default function ButtonCart({
         {isAdding ? (
           <>
             <div className="w-5 h-5 border-2 border-secondary-foreground border-t-transparent rounded-full animate-spin" />
-            {cartItems.some(item => item.quantity > 0) ? 'Atualizando...' : 'Adicionando...'}
+            {cartItems.some(item => item.quantity > 0) ? 'Adicionando...' : 'Adicionando...'}
           </>
         ) : (
           <>
             <Plus className="w-5 h-5" />
             {totalItems > 0 ? (
               cartItems.some(item => item.quantity > 0) ? (
-                `Atualizar ${totalItems} Item${totalItems > 1 ? 's' : ''} - ${totalValue.toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}`
+                `Adicionar ${totalItems} Item${totalItems > 1 ? 's' : ''} - ${totalValue.toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}`
               ) : (
                 `Adicionar ${totalItems} Item${totalItems > 1 ? 's' : ''} - ${totalValue.toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}`
               )
@@ -136,7 +136,7 @@ export default function ButtonCart({
           exit={{ opacity: 0, y: 10 }}
           className="p-4 bg-green-100 border border-green-300 rounded-lg text-green-800 text-center"
         >
-          {cartItems.some(item => item.quantity > 0) ? '✅ Carrinho atualizado!' : '✅ Itens adicionados ao carrinho!'}
+          {cartItems.some(item => item.quantity > 0) ? 'Carrinho atualizado!' : 'Itens adicionados ao carrinho!'}
           <div className="text-sm mt-2 space-y-1">
             {cartItems.map((item) => (
               item.quantity > 0 && (
