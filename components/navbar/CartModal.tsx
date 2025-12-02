@@ -231,12 +231,12 @@ const removeCartItem = async (cartId: string, itemId: string) => {
   // ===========================================
   const handleLogin = () => {
     onClose();
-    router.push('/auth/login'); // Ajuste o caminho conforme sua aplicação
+    router.push('/login'); // Ajuste o caminho conforme sua aplicação
   };
 
   const handleSignup = () => {
     onClose();
-    router.push('/auth/signup'); // Ajuste o caminho conforme sua aplicação
+    router.push('/signup'); // Ajuste o caminho conforme sua aplicação
   };
 
   // ===========================================
