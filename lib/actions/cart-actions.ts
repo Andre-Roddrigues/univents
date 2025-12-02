@@ -157,11 +157,20 @@ export async function updateCartItems(cartId: string, data: CreateCartPayload) {
   try {
     const token = getToken();
 
+    console.log('🔄 Atualizando carrinho:', {
+      url: `${routes.cart_update}/${cartId}`,
+      payload: data,
+      cartId
+    });
+
     const response = await axios.put(`${routes.cart_update}/${cartId}`, data, {
       headers: {
         Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
       },
     });
+
+    console.log('✅ Carrinho atualizado com sucesso:', response.data);
 
     return {
       success: true,
@@ -170,15 +179,28 @@ export async function updateCartItems(cartId: string, data: CreateCartPayload) {
       message: "Carrinho atualizado com sucesso!",
     };
   } catch (error) {
+    console.error('❌ Erro ao atualizar carrinho:', error);
+    
     if (axios.isAxiosError(error)) {
+      const errorMessage = error.response?.data?.message || "Erro ao atualizar o carrinho.";
+      const status = error.response?.status ?? 500;
+      
+      console.error('📋 Detalhes do erro:', {
+        status,
+        message: errorMessage,
+        data: error.response?.data
+      });
+
       return {
         success: false,
-        status: error.response?.status ?? 500,
-        message:
-          error.response?.data?.message || "Erro ao atualizar o carrinho.",
+        status,
+        message: errorMessage,
       };
     }
-    return { success: false, message: String(error) };
+    return { 
+      success: false, 
+      message: "Erro de conexão ao atualizar carrinho" 
+    };
   }
 }
 
@@ -189,11 +211,20 @@ export async function removeCartItems(cartId: string, data: CreateCartPayload) {
   try {
     const token = getToken();
 
+    console.log('🗑️ Removendo itens do carrinho:', {
+      url: `${routes.cart_remove}/${cartId}`,
+      payload: data,
+      cartId
+    });
+
     const response = await axios.put(`${routes.cart_remove}/${cartId}`, data, {
       headers: {
         Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
       },
     });
+
+    console.log('✅ Itens removidos com sucesso:', response.data);
 
     return {
       success: true,
@@ -202,15 +233,28 @@ export async function removeCartItems(cartId: string, data: CreateCartPayload) {
       message: "Itens removidos do carrinho com sucesso!",
     };
   } catch (error) {
+    console.error('❌ Erro ao remover itens:', error);
+    
     if (axios.isAxiosError(error)) {
+      const errorMessage = error.response?.data?.message || "Erro ao remover itens do carrinho.";
+      const status = error.response?.status ?? 500;
+      
+      console.error('📋 Detalhes do erro:', {
+        status,
+        message: errorMessage,
+        data: error.response?.data
+      });
+
       return {
         success: false,
-        status: error.response?.status ?? 500,
-        message:
-          error.response?.data?.message || "Erro ao remover itens do carrinho.",
+        status,
+        message: errorMessage,
       };
     }
-    return { success: false, message: String(error) };
+    return { 
+      success: false, 
+      message: "Erro de conexão ao remover itens" 
+    };
   }
 }
 
@@ -221,11 +265,15 @@ export async function deleteCart(cartId: string) {
   try {
     const token = getToken();
 
+    console.log('🗑️ Removendo carrinho:', cartId);
+
     const response = await axios.delete(`${routes.carts}/${cartId}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
+
+    console.log('✅ Carrinho removido com sucesso:', response.data);
 
     return {
       success: true,
@@ -234,6 +282,8 @@ export async function deleteCart(cartId: string) {
       message: "Carrinho removido com sucesso!",
     };
   } catch (error) {
+    console.error('❌ Erro ao remover carrinho:', error);
+    
     if (axios.isAxiosError(error)) {
       return {
         success: false,
@@ -296,30 +346,18 @@ export async function clearCart() {
     }
 
     // Para limpar completamente, removemos todos os items
-    const response = await axios.put(`${routes.cart_remove}/${cartId}`, {
-      items: [] // Array vazio para remover tudo
-    }, {
-      headers: {
-        Authorization: `Bearer ${getToken()}`,
-      },
-    });
+    const result = await removeCartItems(cartId, { items: [] });
 
-    const data = response.data;
-
-    if (response.status === 200 && data.success) {
+    if (result.success) {
       // Limpar cookie
       cookieStore.delete('cartId');
-      
       return {
         success: true,
         message: 'Carrinho limpo com sucesso'
       };
     }
 
-    return {
-      success: false,
-      message: data.message || 'Erro ao limpar carrinho'
-    };
+    return result;
   } catch (error) {
     console.error('💥 Erro ao limpar carrinho:', error);
     return {

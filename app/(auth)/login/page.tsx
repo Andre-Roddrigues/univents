@@ -15,7 +15,7 @@ export default async function LoginPage() {
                 <Logo className="w-full h-full  border-none" />
               </div>
               <h1 className="text-2xl font-bold text-white mb-2">UniVents</h1>
-              <p className="text-blue-100 ">A mentoria certa para o seu próximo passo</p>
+              <p className="text-blue-100 ">Conectando pessoas através de experiências memoráveis</p>
             </div>
             <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full"></div>
             <div className="absolute -bottom-2 -left-2 w-16 h-16 bg-white/10 rounded-full"></div>
