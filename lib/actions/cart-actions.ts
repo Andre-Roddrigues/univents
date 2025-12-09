@@ -137,7 +137,7 @@ export async function getCart(cartId: string) {
     };
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      console.error('❌ Erro na API getCart:', error.response?.data);
+      console.error('Erro na API getCart:', error.response?.data);
       return {
         success: false,
         status: error.response?.status ?? 500,

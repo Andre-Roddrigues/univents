@@ -386,41 +386,41 @@ export default function ModalPay({ isOpen, onClose, event, tickets }: ModalPayPr
                         <h4 className="font-medium text-foreground text-sm sm:text-base">
                           Pagamento via M-Pesa
                         </h4>
-                        <div>
-                          <label className="block text-xs sm:text-sm font-medium text-foreground mb-1 sm:mb-2">
-                            Número de Telefone M-Pesa *
-                          </label>
-                          <div className="flex flex-col xs:flex-row gap-2">
-                            <div className="w-full xs:w-auto">
-                              <select 
-                                className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                                value={phoneNumber.slice(0, 2)}
-                                onChange={(e) => {
-                                  const prefix = e.target.value;
-                                  const rest = phoneNumber.slice(2);
-                                  setPhoneNumber(prefix + rest);
-                                }}
-                              >
-                                <option value="84">84</option>
-                                <option value="85">85</option>
-                              </select>
-                            </div>
-                            <input
-                              type="tel"
-                              value={phoneNumber.slice(2)}
-                              onChange={(e) => {
-                                const prefix = phoneNumber.slice(0, 2);
-                                const numbers = e.target.value.replace(/\D/g, '');
-                                setPhoneNumber(prefix + numbers.slice(0, 7));
-                              }}
-                              placeholder="123 4567"
-                              className="flex-1 w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                            />
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1 sm:mt-2">
-                            Digite o número completo (ex: 84 123 4567)
-                          </p>
-                        </div>
+                      <div>
+  <label className="block text-xs sm:text-sm font-medium text-foreground mb-1 sm:mb-2">
+    Número de Telefone M-Pesa *
+  </label>
+
+  <input
+    type="tel"
+    value={phoneNumber}
+    onChange={(e) => {
+      let value = e.target.value.replace(/\D/g, ""); // remove não números
+
+      // força máximo de 9 dígitos
+      if (value.length > 9) {
+        value = value.slice(0, 9);
+      }
+
+      // força começar com 84 ou 85
+      if (value.length >= 2 && !value.startsWith("84") && !value.startsWith("85")) {
+        value = "84"; // ou: value = ""; se quiser limpar em vez de corrigir automaticamente
+      }
+
+      setPhoneNumber(value);
+    }}
+    placeholder="84XXXXXXX ou 85XXXXXXX"
+    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
+      phoneNumber && phoneNumber.length !== 9 ? "border-red-500 focus:ring-red-400" : "border-border focus:ring-primary"
+    }`}
+  />
+
+  {/* validação de erro */}
+  {phoneNumber && phoneNumber.length !== 9 && (
+    <p className="text-red-500 text-xs mt-1">O número deve ter 9 dígitos e começar com 84 ou 85.</p>
+  )}
+</div>
+
                       </div>
                     )}
 
@@ -493,18 +493,7 @@ export default function ModalPay({ isOpen, onClose, event, tickets }: ModalPayPr
                           </h4>
                           
                           <div className="space-y-2">
-                            <div>
-                              <label className="block text-xs sm:text-sm font-medium text-foreground mb-1 sm:mb-2">
-                                Número de Referência *
-                              </label>
-                              <input
-                                type="text"
-                                value={referenceNumber}
-                                onChange={(e) => setReferenceNumber(e.target.value)}
-                                placeholder="Número da transferência"
-                                className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                              />
-                            </div>
+                            
 
                             <div>
                               <label className="block text-xs sm:text-sm font-medium text-foreground mb-1 sm:mb-2">
