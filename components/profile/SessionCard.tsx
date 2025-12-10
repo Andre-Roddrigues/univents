@@ -1,51 +1,12 @@
+// components/profile/SessionCard.tsx
 'use client';
 
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Clock, Download, Share2, QrCode } from 'lucide-react';
-
-// Interface atualizada para refletir a estrutura real da API
-interface Ticket {
-  id: string;
-  paymentReference: string | null;
-  eventName: string;
-  eventDate: string;
-  eventTime: string;
-  eventLocation: string;
-  ticketCode: string;
-  ticketType: string;
-  price: number;
-  quantity: number;
-  purchaseDate: string;
-  status: 'active' | 'used' | 'pending' | 'cancelled';
-  qrCode?: string;
-  paymentMethod: string;
-  paymentStatus: string;
-  originalData: {
-    paymentId: string;
-    ticketId: string;
-    eventId: string;
-    type: string;
-    quantity: number;
-    paymentDate: string;
-    ticketUser?: {
-      id: string;
-      userId: string;
-      ticketId: string;
-      code: string;
-    };
-    event?: {
-      id: string;
-      title: string;
-      description: string;
-      location: string;
-      img: string;
-      province: string;
-    };
-  };
-}
+import { Calendar, MapPin, Clock, Download, Share2, QrCode, Ticket as TicketIcon, CreditCard } from 'lucide-react';
+import type { LocalTicket } from './QrModdal';
 
 interface SessionCardProps {
-  ticket: Ticket;
+  ticket: LocalTicket;
   onGenerateQR: (ticketId: string) => void;
   onDownload: (ticketId: string) => void;
   onShare: (ticketId: string) => void;
@@ -61,22 +22,41 @@ export default function SessionCard({
   onViewQRCode,
   generatingQR = false 
 }: SessionCardProps) {
+  
+  // Função para formatar data
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-MZ', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('pt-MZ', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
   };
 
+  // Função para formatar data e hora
   const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-MZ', {
-      day: 'numeric',
-      month: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('pt-MZ', {
+        day: 'numeric',
+        month: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Função para formatar moeda
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('pt-MZ', {
+      style: 'currency',
+      currency: 'MZN'
+    }).format(amount);
   };
 
   const getStatusColor = (status: string) => {
@@ -85,9 +65,7 @@ export default function SessionCard({
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-      case 'used':
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
-      case 'cancelled':
+      case 'expired':
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
@@ -97,133 +75,179 @@ export default function SessionCard({
   const getStatusText = (status: string) => {
     switch (status) {
       case 'active':
-        return 'Confirmado';
+        return 'Ativo';
       case 'pending':
         return 'Pendente';
-      case 'used':
-        return 'Utilizado';
-      case 'cancelled':
-        return 'Cancelado';
+      case 'expired':
+        return 'Expirado';
       default:
         return status;
     }
   };
 
   const getPaymentMethodText = (method: string) => {
-    switch (method) {
+    switch (method.toLowerCase()) {
       case 'mpesa':
         return 'M-Pesa';
-      case 'tranference':
+      case 'tranfer':
+      case 'transfer':
         return 'Transferência';
       case 'card':
+      case 'cartão':
         return 'Cartão';
       default:
         return method;
     }
   };
 
-  // Usar o código real do ticketUser se disponível
-  const displayTicketCode = ticket.originalData.ticketUser?.code || ticket.ticketCode;
+  // Usar dados do evento do originalData se disponíveis
+  const eventData = ticket.originalData?.event || {
+    title: ticket.eventName,
+    description: ticket.eventDescription,
+    location: ticket.eventLocation,
+    img: ticket.eventImage,
+    province: ticket.eventProvince
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-card border border-border rounded-xl p-6 hover:shadow-md transition-all duration-300"
+      className={`bg-card border border-border rounded-xl p-6 hover:shadow-md transition-all duration-300 ${
+        ticket.status === 'expired' ? 'opacity-70 hover:opacity-90' : ''
+      }`}
     >
       <div className="flex flex-col lg:flex-row gap-6">
         
-        {/* Event Info */}
+        {/* Coluna da Esquerda - Imagem e Informações Básicas */}
+        {eventData.img && (
+          <div className="lg:w-1/4">
+            <div className="relative overflow-hidden rounded-lg aspect-square mb-4">
+              <img 
+                src={eventData.img} 
+                alt={eventData.title}
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+            
+            {/* Informações rápidas */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <TicketIcon className="w-4 h-4 text-primary" />
+                <span className="font-medium">{ticket.ticketName}</span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
+                  {getStatusText(ticket.status)}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2 text-sm">
+                <CreditCard className="w-4 h-4 text-blue-500" />
+                <span>{getPaymentMethodText(ticket.paymentMethod)}</span>
+                <span className={`px-2 py-1 rounded-full text-xs ${
+                  ticket.paymentStatus === 'confirmed' 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {ticket.paymentStatus === 'confirmed' ? 'Pago' : 'Pendente'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Coluna Central - Informações Detalhadas */}
         <div className="flex-1">
           <div className="flex items-start justify-between mb-4">
             <div>
               <h3 className="text-xl font-semibold text-foreground mb-2">
-                {ticket.eventName}
+                {eventData.title}
               </h3>
-              <div className="flex items-center gap-2">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
-                  {getStatusText(ticket.status)}
-                </span>
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                  ticket.paymentStatus === 'confirmed' 
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
-                }`}>
-                  {ticket.paymentStatus === 'confirmed' ? 'Pago' : 'Pagamento Pendente'}
-                </span>
-              </div>
+              <p className="text-sm text-muted-foreground mb-3">
+                {eventData.description}
+              </p>
             </div>
             
+            {/* Código do Ticket */}
             <div className="text-right">
-              <div className="text-2xl font-bold text-primary mb-1">
-                {displayTicketCode}
+              <div className="text-2xl font-bold text-primary mb-1 font-mono">
+                {ticket.ticketCode}
               </div>
               <div className="text-sm text-muted-foreground">
-                {ticket.originalData.ticketUser ? 'Código do Ticket' : 'Código do Bilhete'}
+                Código do Ticket
               </div>
             </div>
           </div>
 
-          {/* Event Details */}
+          {/* Detalhes do Evento */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <Calendar className="w-4 h-4" />
-              <span>{formatDate(ticket.eventDate)}</span>
+            <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+              <Calendar className="w-4 h-4 text-primary" />
+              <div>
+                <p className="text-xs text-muted-foreground">Data</p>
+                <p className="font-medium">{ticket.eventDate}</p>
+              </div>
             </div>
             
-            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <Clock className="w-4 h-4" />
-              <span>{ticket.eventTime}</span>
+            <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+              <Clock className="w-4 h-4 text-blue-500" />
+              <div>
+                <p className="text-xs text-muted-foreground">Horário</p>
+                <p className="font-medium">{ticket.eventTime}</p>
+              </div>
             </div>
             
-            <div className="flex items-center gap-3 text-sm text-muted-foreground md:col-span-2">
-              <MapPin className="w-4 h-4" />
-              <span>{ticket.eventLocation}</span>
+            <div className="md:col-span-2 flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+              <MapPin className="w-4 h-4 text-green-500" />
+              <div>
+                <p className="text-xs text-muted-foreground">Local</p>
+                <p className="font-medium">{eventData.location}</p>
+                <p className="text-xs text-muted-foreground">{eventData.province}</p>
+              </div>
             </div>
           </div>
 
-          {/* Ticket Details */}
-          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-            <div>
-              <span className="font-medium">Tipo:</span> {ticket.ticketType}
+          {/* Detalhes do Bilhete */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 text-sm">
+            <div className="p-2 bg-card border border-border rounded">
+              <p className="text-xs text-muted-foreground">Tipo</p>
+              <p className="font-medium capitalize">{ticket.ticketType}</p>
             </div>
-            <div>
-              <span className="font-medium">Preço:</span> {ticket.price} MZN
+            
+            <div className="p-2 bg-card border border-border rounded">
+              <p className="text-xs text-muted-foreground">Preço</p>
+              <p className="font-medium text-green-600">{formatCurrency(ticket.price)}</p>
             </div>
-            <div>
-              <span className="font-medium">Quantidade:</span> {ticket.quantity}
+            
+            <div className="p-2 bg-card border border-border rounded">
+              <p className="text-xs text-muted-foreground">Quantidade</p>
+              <p className="font-medium">{ticket.quantity}</p>
             </div>
-            <div>
-              <span className="font-medium">Pagamento:</span> {getPaymentMethodText(ticket.paymentMethod)}
+            
+            <div className="p-2 bg-card border border-border rounded">
+              <p className="text-xs text-muted-foreground">Expira em</p>
+              <p className="font-medium">{formatDate(ticket.expiresAt)}</p>
             </div>
-            <div>
-              <span className="font-medium">Comprado em:</span> {formatDateTime(ticket.originalData.paymentDate)}
-            </div>
+          </div>
+
+          {/* Informações Adicionais */}
+          <div className="text-xs text-muted-foreground">
+            <p>Comprado em: {ticket.purchaseDate}</p>
             {ticket.paymentReference && (
-              <div>
-                <span className="font-medium">Referência:</span> {ticket.paymentReference}
-              </div>
+              <p>Referência: {ticket.paymentReference}</p>
             )}
           </div>
-
-          {/* Informação do código do ticketUser */}
-          {ticket.originalData.ticketUser && (
-            <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
-              <div className="flex items-center gap-2 text-sm">
-                <span className="font-medium text-primary">Código de Validação:</span>
-                <span className="font-mono font-bold">{ticket.originalData.ticketUser.code}</span>
-                <span className="text-xs text-muted-foreground">(Usado no QR Code)</span>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Actions */}
+        {/* Coluna da Direita - Ações */}
         <div className="flex lg:flex-col gap-2">
           <button
             onClick={() => onViewQRCode(ticket.id)}
-            disabled={generatingQR}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+            disabled={generatingQR || ticket.status === 'expired'}
+            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+              ticket.status === 'expired' 
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+            }`}
           >
             {generatingQR ? (
               <>
@@ -233,15 +257,19 @@ export default function SessionCard({
             ) : (
               <>
                 <QrCode className="w-4 h-4" />
-                Ver QR Code
+                Ver QR
               </>
             )}
           </button>
           
           <button
             onClick={() => onDownload(ticket.id)}
-            disabled={!ticket.qrCode}
-            className="flex items-center justify-center gap-2 px-4 py-2 border border-border text-foreground rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+            disabled={!ticket.qrCode || ticket.status === 'expired'}
+            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+              !ticket.qrCode || ticket.status === 'expired'
+                ? 'border border-border text-muted-foreground cursor-not-allowed' 
+                : 'border border-primary text-primary hover:bg-primary/10'
+            }`}
           >
             <Download className="w-4 h-4" />
             Download
@@ -257,7 +285,7 @@ export default function SessionCard({
         </div>
       </div>
 
-      {/* QR Code Section - Mostra o QR Code gerado originalmente */}
+      {/* Seção do QR Code (expandível) */}
       {ticket.qrCode && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
@@ -269,11 +297,10 @@ export default function SessionCard({
               QR Code do Bilhete
             </h4>
             
-            <div className="bg-white p-4 rounded-lg border border-border mb-4">
-              {/* QR Code Image Original */}
+            <div className="bg-white p-4 rounded-lg border border-border mb-4 shadow-sm">
               <img 
                 src={ticket.qrCode} 
-                alt={`QR Code do bilhete ${displayTicketCode}`}
+                alt={`QR Code do bilhete ${ticket.ticketCode}`}
                 className="w-48 h-48 mx-auto"
               />
             </div>
@@ -282,17 +309,12 @@ export default function SessionCard({
               <p className="text-sm text-muted-foreground">
                 Apresente este código QR na entrada do evento
               </p>
-              <p className="text-xs text-muted-foreground">
-                Código: <span className="font-mono font-medium">{displayTicketCode}</span>
+              <p className="text-xs text-muted-foreground font-mono">
+                {ticket.ticketCode}
               </p>
-              {ticket.originalData.ticketUser && (
-                <p className="text-xs text-primary font-medium">
-                  Código de validação: {ticket.originalData.ticketUser.code}
-                </p>
-              )}
             </div>
 
-            {/* Mini Actions */}
+            {/* Mini Ações para o QR Code */}
             <div className="flex gap-3 mt-4">
               <button
                 onClick={() => onDownload(ticket.id)}
@@ -308,12 +330,19 @@ export default function SessionCard({
                 <Share2 className="w-3 h-3" />
                 Partilhar
               </button>
+              <button
+                onClick={() => onGenerateQR(ticket.id)}
+                className="flex items-center gap-2 px-3 py-1 text-xs border border-border rounded hover:bg-muted transition-colors"
+              >
+                <QrCode className="w-3 h-3" />
+                Gerar Novo
+              </button>
             </div>
           </div>
         </motion.div>
       )}
 
-      {/* Seção para gerar QR Code se não existir */}
+      {/* Seção para gerar QR Code se não existir e o ticket estiver ativo */}
       {!ticket.qrCode && ticket.status === 'active' && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -343,6 +372,16 @@ export default function SessionCard({
             </button>
           </div>
         </motion.div>
+      )}
+
+      {/* Mensagem para tickets expirados */}
+      {ticket.status === 'expired' && (
+        <div className="mt-4 pt-4 border-t border-red-200">
+          <div className="flex items-center gap-2 text-red-600 text-sm">
+            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+            <p>Este bilhete expirou em {formatDate(ticket.expiresAt)}</p>
+          </div>
+        </div>
       )}
     </motion.div>
   );

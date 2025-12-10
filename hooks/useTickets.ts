@@ -5,92 +5,59 @@ import { LocalTicket } from '@/components/profile/QrModdal';
 
 interface TicketSummary {
   totalTickets: number;
-  confirmedTickets: number;
-  pendingTickets: number;
+  activeTickets: number;
+  expiredTickets: number;
   totalAmount: number;
+  pendingTickets: number;
 }
 
-interface Payment {
+// Interface para o novo formato da API (com base no JSON que você forneceu)
+interface ApiTicketItem {
   id: string;
-  amount: number;
-  reference: string | null;
-  method: string;
-  status: string;
-  paymentDate: string;
-  itemName: string;
-  itemId: string;
-  entityId: string;
-  cart: {
+  userId: string;
+  ticketId: string;
+  code: string;
+  ticket: {
     id: string;
-    discount: null | number;
-    TotalPriceAftertDiscount: null | number;
-    totalPrice: number;
-    status: string;
-    userId: string;
-    cartItems: Array<{
+    name: string;
+    type: string;
+    price: number;
+    expiresAt: string;
+    eventId: string;
+    event: {
       id: string;
-      ticketId: string;
-      cartId: string;
-      price: number;
-      quantity: number;
-      TotalProductDiscount: null | number;
-      ticket: {
-        id: string;
-        name: string;
-        type: string;
-        price: number;
-        availableQuantity: number;
-        lastDayPayment: string;
-        status: string;
-        expiresAt: null | string;
-        eventId: string;
-        ticketUsers: Array<{
-          id: string;
-          userId: string;
-          ticketId: string;
-          code: string;
-        }>;
-        event: {
-          id: string;
-          title: string;
-          description: string;
-          location: string;
-          img: string;
-          province: string;
-          date?: string;
-        };
-      };
-    }>;
+      title: string;
+      description: string;
+      location: string;
+      img: string;
+      province: string;
+    };
   };
 }
 
 interface UserTicketResponse {
   success: boolean;
-  payments?: Payment[];
+  items?: ApiTicketItem[]; // Agora é "items" em vez de "payments"
   message?: string;
 }
 
 export function useTickets(token: string | null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [apiPayments, setApiPayments] = useState<Payment[]>([]);
+  const [apiItems, setApiItems] = useState<ApiTicketItem[]>([]);
   const [localTickets, setLocalTickets] = useState<LocalTicket[]>([]);
   const [summary, setSummary] = useState<TicketSummary>({
     totalTickets: 0,
-    confirmedTickets: 0,
-    pendingTickets: 0,
-    totalAmount: 0
+    activeTickets: 0,
+    expiredTickets: 0,
+    totalAmount: 0,
+    pendingTickets: 0
   });
 
-  const getTicketStatus = (paymentStatus: string): 'active' | 'used' | 'pending' => {
-    switch (paymentStatus) {
-      case 'confirmed':
-        return 'active';
-      case 'pending':
-        return 'pending';
-      default:
-        return 'used';
-    }
+  const getTicketStatus = (expiresAt: string): 'active' | 'expired' => {
+    const expiresDate = new Date(expiresAt);
+    const now = new Date();
+    return expiresDate > now ? 'active' : 'expired';
   };
 
   const loadUserTickets = async () => {
@@ -105,131 +72,136 @@ export function useTickets(token: string | null) {
       
       console.log('🎫 Carregando bilhetes do usuário...');
       
-      const result: UserTicketResponse = await getUserTickets(token);
+      const result: UserTicketResponse = await getUserTickets();
       
       console.log('📦 Resposta da API:', result);
       
-      if (result.success && result.payments && result.payments.length > 0) {
-        console.log('✅ Pagamentos carregados com sucesso:', result.payments.length);
+      if (result.success && result.items && result.items.length > 0) {
+        console.log('✅ Items carregados com sucesso:', result.items.length);
         
-        setApiPayments(result.payments);
+        setApiItems(result.items);
         
-        // Processar todos os tickets dos pagamentos
+        // Processar todos os tickets da API
         const allTickets: LocalTicket[] = [];
         let totalTickets = 0;
-        let confirmedTickets = 0;
-        let pendingTickets = 0;
+        let activeTickets = 0;
+        let expiredTickets = 0;
         let totalAmount = 0;
 
-        result.payments.forEach((payment: Payment) => {
-          console.log('💳 Processando pagamento:', payment.id, 'Status:', payment.status);
-          console.log('🛒 Cart items:', payment.cart?.cartItems?.length);
+        result.items.forEach((item: ApiTicketItem) => {
+          console.log('🎫 Processando ticket:', item.id, 'Código:', item.code);
           
-          totalAmount += payment.amount;
+          const ticket = item.ticket;
+          const event = ticket.event;
+          const status = getTicketStatus(ticket.expiresAt);
           
-          // Processar cada cartItem no carrinho
-          if (payment.cart && payment.cart.cartItems) {
-            payment.cart.cartItems.forEach((cartItem, itemIndex: number) => {
-              const ticket = cartItem.ticket;
-              const event = ticket.event;
-              
-              console.log('🎪 Evento:', event.title);
-              console.log('🎫 Ticket:', ticket.name, 'Quantidade:', cartItem.quantity);
-              
-              // Para cada quantidade, criar um ticket individual
-              for (let i = 0; i < cartItem.quantity; i++) {
-                totalTickets++;
-                
-                if (payment.status === 'confirmed') {
-                  confirmedTickets++;
-                } else if (payment.status === 'pending') {
-                  pendingTickets++;
-                }
-                
-                // Encontrar o código do ticket para este usuário específico
-                const ticketUser = ticket.ticketUsers?.find((tu) => 
-                  tu.userId === payment.entityId
-                );
-                
-                console.log('👤 Ticket User:', ticketUser);
-                
-                const ticketCode = ticketUser?.code || `TKT-${payment.id.slice(0, 8)}-${itemIndex}-${i}`;
-
-                // Usar dados reais do evento
-                // Se não houver data do evento, usar a data de pagamento como fallback
-                const eventDate = event.date || ticket.lastDayPayment || payment.paymentDate;
-                const eventTime = '20:00'; // Horário padrão
-
-                const localTicket: LocalTicket = {
-                  id: `${payment.id}-${ticket.id}-${itemIndex}-${i}`,
-                  paymentReference: payment.reference,
-                  eventName: event.title, // Nome real do evento
-                  eventDate: new Date(eventDate).toLocaleDateString('pt-MZ'), // Data do evento
-                  eventTime: eventTime,
-                  eventLocation: event.location, // Local real do evento
-                  ticketCode: ticketCode,
-                  quantity: 1, // Cada ticket é individual
-                  ticketType: ticket.name, // Nome do tipo de ticket (VIP, Normal, etc.)
-                  price: cartItem.price,
-                  purchaseDate: new Date(payment.paymentDate).toLocaleDateString('pt-MZ'),
-                  status: getTicketStatus(payment.status),
-                  qrCode: '',
-                  paymentMethod: payment.method,
-                  paymentStatus: payment.status,
-                  originalData: {
-                    paymentId: payment.id,
-                    ticketId: ticket.id,
-                    eventId: event.id,
-                    type: ticket.type,
-                    quantity: cartItem.quantity,
-                    paymentDate: payment.paymentDate,
-                    ticketUser: ticketUser,
-                    event: event // Dados completos do evento
-                  }
-                };
-
-                console.log('✅ Ticket criado:', localTicket.eventName);
-                allTickets.push(localTicket);
-              }
-            });
+          totalTickets++;
+          totalAmount += ticket.price;
+          
+          if (status === 'active') {
+            activeTickets++;
+          } else {
+            expiredTickets++;
           }
+          
+          // Formatar data do evento (usa expiresAt como data do evento)
+          const eventDate = new Date(ticket.expiresAt).toLocaleDateString('pt-MZ', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          });
+          
+          const eventTime = new Date(ticket.expiresAt).toLocaleTimeString('pt-MZ', {
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+
+          const localTicket: LocalTicket = {
+            id: item.id,
+            ticketId: item.ticketId,
+            ticketCode: item.code,
+            ticketType: ticket.type,
+            ticketName: ticket.name,
+            price: ticket.price,
+            expiresAt: ticket.expiresAt,
+            
+            // Dados do evento
+            eventId: ticket.eventId,
+            eventName: event.title,
+            eventDescription: event.description,
+            eventLocation: event.location,
+            eventImage: event.img,
+            eventProvince: event.province,
+            eventDate: eventDate,
+            eventTime: eventTime,
+            
+            // Dados de compra (como não temos data de compra na API, usamos a data atual)
+            purchaseDate: new Date().toLocaleDateString('pt-MZ'),
+            quantity: 1,
+            paymentMethod: 'Cartão', // Valor padrão
+            paymentStatus: 'confirmed', // Assumindo que todos são confirmados
+            paymentReference: `REF-${item.code}`,
+            
+            // Status e QR Code
+            status: status,
+            qrCode: '',
+            
+            // Dados originais
+            originalData: {
+              paymentId: item.id,
+              ticketId: ticket.id,
+              eventId: event.id,
+              type: ticket.type,
+              quantity: 1,
+              paymentDate: new Date().toISOString(),
+              ticketUser: {
+                code: item.code
+              },
+              event: event
+            }
+          };
+
+          console.log('✅ Ticket criado:', localTicket.eventName);
+          allTickets.push(localTicket);
         });
 
         setSummary({
           totalTickets,
-          confirmedTickets,
-          pendingTickets,
-          totalAmount
+          activeTickets,
+          expiredTickets,
+          totalAmount,
+          pendingTickets: 0 // Como não temos status de pending na nova API
         });
 
         setLocalTickets(allTickets);
         
         console.log('📊 Resumo final:', {
           totalTickets,
-          confirmedTickets,
-          pendingTickets,
+          activeTickets,
+          expiredTickets,
           totalAmount,
           ticketsCount: allTickets.length
         });
         
       } else if (result.success) {
-        console.log('ℹ️ Nenhum pagamento encontrado na resposta');
-        setApiPayments([]);
+        console.log('ℹ️ Nenhum item encontrado na resposta');
+        setApiItems([]);
         setLocalTickets([]);
         setSummary({
           totalTickets: 0,
-          confirmedTickets: 0,
-          pendingTickets: 0,
-          totalAmount: 0
+          activeTickets: 0,
+          expiredTickets: 0,
+          totalAmount: 0,
+          pendingTickets: 0
         });
       } else {
         console.error('❌ Erro na resposta da API:', result.message);
         setError(result.message || 'Erro ao carregar bilhetes');
         setLocalTickets([]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('💥 Erro inesperado:', err);
-      setError('Erro inesperado ao carregar bilhetes');
+      setError(err.message || 'Erro inesperado ao carregar bilhetes');
       setLocalTickets([]);
     } finally {
       setLoading(false);
@@ -251,7 +223,7 @@ export function useTickets(token: string | null) {
   return {
     loading,
     error,
-    apiPayments,
+    apiItems, // Mudado de apiPayments para apiItems
     localTickets,
     summary,
     loadUserTickets,

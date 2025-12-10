@@ -10,21 +10,24 @@ import PerfilForm from '@/components/profile/ProfileForm';
 import Stats from '@/components/profile/StatsCards';
 import { QRModal } from '@/components/profile/QrModdal';
 import { useQRCode } from '@/hooks/useQrCode';
+import type { LocalTicket } from '@/components/profile/QrModdal';
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'tickets'>('profile');
   const [token, setToken] = useState<string | null>(null);
   const [userData, setUserData] = useState<any>(null);
   const [qrModalOpen, setQrModalOpen] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [selectedTicket, setSelectedTicket] = useState<LocalTicket | null>(null);
   const [generatingQR, setGeneratingQR] = useState<string | null>(null);
 
   // Hooks customizados
   const { qrCodeLoaded, generateQRCode } = useQRCode();
+  
+  // Usar o hook useTickets que já cuida de toda a lógica
   const {
     loading,
     error,
-    apiPayments,
+    apiItems,
     localTickets,
     summary,
     loadUserTickets,
@@ -78,46 +81,45 @@ export default function ProfilePage() {
   }, []);
 
   // ================================
-  // GERAR QR CODE EM TEMPO REAL
+  // GERAR QR CODE EM TEMPO REAL COM DADOS REAIS
   // ================================
-  const generateQRCodeRealTime = async (ticket: any): Promise<string> => {
+  const generateQRCodeRealTime = async (ticket: LocalTicket): Promise<string> => {
     setGeneratingQR(ticket.id);
     
     return new Promise((resolve) => {
       setTimeout(() => {
         // Usar dados reais da API para o QR Code
         const qrData = JSON.stringify({
-          // Dados do Ticket
-          ticketId: ticket.originalData.ticketId,
+          // Dados do Ticket (reais da API)
+          ticketId: ticket.ticketId,
           ticketCode: ticket.ticketCode,
           ticketType: ticket.ticketType,
-          validationCode: ticket.originalData.ticketUser?.code,
+          ticketName: ticket.ticketName,
+          validationCode: ticket.ticketCode,
           
           // Dados do Evento (reais da API)
-          eventId: ticket.originalData.eventId,
-          eventName: ticket.eventName, // Nome real do evento
-          eventLocation: ticket.eventLocation, // Local real do evento
-          eventDate: ticket.eventDate, // Data real do evento
-          eventTime: ticket.eventTime,
-          eventProvince: ticket.originalData.event?.province,
+          eventId: ticket.eventId,
+          eventName: ticket.eventName,
+          eventLocation: ticket.eventLocation,
+          eventDescription: ticket.eventDescription,
+          eventImage: ticket.eventImage,
+          eventProvince: ticket.eventProvince,
           
           // Dados do Pagamento
-          paymentId: ticket.originalData.paymentId,
-          paymentReference: ticket.paymentReference,
-          paymentMethod: ticket.paymentMethod,
-          paymentStatus: ticket.paymentStatus,
-          purchaseDate: ticket.originalData.paymentDate,
+          paymentId: ticket.id,
           price: ticket.price,
+          expiresAt: ticket.expiresAt,
+          purchaseDate: new Date().toISOString(),
           
           // Dados do Usuário
           userId: userData?.id,
-          userName: userData?.name || userData?.username,
-          userEmail: userData?.email,
+          userName: userProfile.name,
+          userEmail: userProfile.email,
           
           // Metadados
-          quantity: ticket.quantity,
           timestamp: new Date().toISOString(),
-          source: 'EventosApp'
+          source: 'EventosApp',
+          securityHash: btoa(`${ticket.id}-${ticket.ticketCode}-${userData?.id}`).slice(0, 20)
         });
 
         const qrCode = generateQRCode(qrData);
@@ -201,7 +203,15 @@ export default function ProfilePage() {
     if (!ticket) return;
 
     try {
-      const shareText = `🎫 Meu bilhete para ${ticket.eventName}\n📅 Data: ${ticket.eventDate}\n📍 Local: ${ticket.eventLocation}\n🎪 Tipo: ${ticket.ticketType}\n💰 Valor: ${ticket.price} MZN\n🔗 Código: ${ticket.ticketCode}`;
+      // Formatar a data de expiração para português
+      const eventDate = new Date(ticket.expiresAt).toLocaleDateString('pt-MZ', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+
+      const shareText = `🎫 Meu bilhete para ${ticket.eventName}\n📅 Data: ${eventDate}\n📍 Local: ${ticket.eventLocation}\n🎪 Tipo: ${ticket.ticketName} (${ticket.ticketType})\n💰 Valor: ${ticket.price} MZN\n🔗 Código: ${ticket.ticketCode}`;
 
       if (navigator.share) {
         await navigator.share({
@@ -223,59 +233,63 @@ export default function ProfilePage() {
   };
 
   // ================================
-  // CALCULAR ESTATÍSTICAS
+  // CALCULAR ESTATÍSTICAS COM DADOS REAIS
   // ================================
-  const getFavoriteCategory = (): string => {
-    if (localTickets.length === 0) return 'Geral';
-    
+  const getStats = () => {
+    if (localTickets.length === 0) {
+      return {
+        totalTickets: 0,
+        upcomingEvents: 0,
+        totalSpent: 0,
+        favoriteCategory: 'Nenhum',
+        favoriteEvent: 'Nenhum',
+        totalEvents: 0
+      };
+    }
+
+    // Contar categorias de tickets
     const categories = localTickets.reduce((acc, ticket) => {
-      const category = ticket.ticketType.toLowerCase();
+      const category = ticket.ticketName;
       acc[category] = (acc[category] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    const favorite = Object.entries(categories).reduce((max, [category, count]) => 
+    const favoriteCategory = Object.entries(categories).reduce((max, [category, count]) => 
       count > max.count ? { category, count } : max, 
-      { category: 'Geral', count: 0 }
-    );
+      { category: 'Nenhum', count: 0 }
+    ).category;
 
-    return favorite.category.charAt(0).toUpperCase() + favorite.category.slice(1);
-  };
-
-  const getFavoriteEvent = (): string => {
-    if (localTickets.length === 0) return 'Nenhum';
-    
+    // Contar eventos
     const events = localTickets.reduce((acc, ticket) => {
       const eventName = ticket.eventName;
       acc[eventName] = (acc[eventName] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    const favorite = Object.entries(events).reduce((max, [eventName, count]) => 
+    const favoriteEvent = Object.entries(events).reduce((max, [eventName, count]) => 
       count > max.count ? { eventName, count } : max, 
       { eventName: 'Nenhum', count: 0 }
-    );
+    ).eventName;
 
-    return favorite.eventName;
-  };
-
-  const getTotalEvents = (): number => {
     const uniqueEvents = new Set(localTickets.map(ticket => ticket.eventName));
-    return uniqueEvents.size;
-  };
+    const activeTickets = localTickets.filter(t => t.status === 'active');
+    const totalSpent = localTickets.reduce((sum, ticket) => sum + ticket.price, 0);
 
-  const stats = {
-    totalTickets: summary.totalTickets,
-    upcomingEvents: localTickets.filter(t => t.status === 'active').length,
-    totalSpent: summary.totalAmount,
-    favoriteCategory: getFavoriteCategory(),
-    favoriteEvent: getFavoriteEvent(),
-    totalEvents: getTotalEvents()
+    return {
+      totalTickets: summary.totalTickets,
+      upcomingEvents: summary.activeTickets,
+      totalSpent: summary.totalAmount,
+      favoriteCategory,
+      favoriteEvent,
+      totalEvents: uniqueEvents.size
+    };
   };
 
   // ================================
   // RENDER
   // ================================
+  const stats = getStats();
+
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="container mx-auto px-4 max-w-6xl">
@@ -309,7 +323,7 @@ export default function ProfilePage() {
             {localTickets.length > 0 && (
               <>
                 <span className="ml-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full">
-                  {localTickets.filter(t => t.status === 'active').length}
+                  {summary.activeTickets}
                 </span>
                 {summary.pendingTickets > 0 && (
                   <span className="ml-1 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">

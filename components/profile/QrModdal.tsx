@@ -6,21 +6,36 @@ import { X, Download, Share2, RefreshCw, User, Mail, Calendar, MapPin, Clock, Ti
 import { useState } from 'react';
 
 export interface LocalTicket {
-  paymentReference: any;
   id: string;
+  ticketId: string;
+  ticketCode: string;
+  ticketType: string;
+  ticketName: string;
+  price: number;
+  expiresAt: string;
+  
+  // Dados do evento
+  eventId: string;
   eventName: string;
+  eventDescription: string;
+  eventLocation: string;
+  eventImage: string;
+  eventProvince: string;
   eventDate: string;
   eventTime: string;
-  eventLocation: string;
-  ticketCode: string;
-  quantity: number;
-  ticketType: string;
-  price: number;
+  
+  // Dados de compra
   purchaseDate: string;
-  status: 'active' | 'used' | 'pending';
-  qrCode: string;
+  quantity: number;
   paymentMethod: string;
   paymentStatus: string;
+  paymentReference: string;
+  
+  // Status e QR Code
+  status: 'active' | 'expired' | 'pending';
+  qrCode: string;
+  
+  // Dados originais
   originalData: {
     paymentId: string;
     ticketId: string;
@@ -29,9 +44,6 @@ export interface LocalTicket {
     quantity: number;
     paymentDate: string;
     ticketUser?: {
-      id: string;
-      userId: string;
-      ticketId: string;
       code: string;
     };
     event?: {
@@ -82,22 +94,30 @@ export function QRModal({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-MZ', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('pt-MZ', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
   };
 
   const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-MZ', {
-      day: 'numeric',
-      month: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('pt-MZ', {
+        day: 'numeric',
+        month: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return dateString;
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -106,8 +126,8 @@ export function QRModal({
         return 'bg-green-500';
       case 'pending':
         return 'bg-yellow-500';
-      case 'used':
-        return 'bg-gray-500';
+      case 'expired':
+        return 'bg-red-500';
       default:
         return 'bg-gray-500';
     }
@@ -116,23 +136,25 @@ export function QRModal({
   const getStatusText = (status: string) => {
     switch (status) {
       case 'active':
-        return 'Confirmado';
+        return 'Ativo';
       case 'pending':
         return 'Pendente';
-      case 'used':
-        return 'Utilizado';
+      case 'expired':
+        return 'Expirado';
       default:
         return status;
     }
   };
 
   const getPaymentMethodText = (method: string) => {
-    switch (method) {
+    switch (method.toLowerCase()) {
       case 'mpesa':
         return 'M-Pesa';
-      case 'tranference':
+      case 'tranfer':
+      case 'transfer':
         return 'Transferência';
       case 'card':
+      case 'cartão':
         return 'Cartão';
       default:
         return method;
@@ -167,6 +189,15 @@ export function QRModal({
       )}
     </button>
   );
+
+  // Usar dados do evento do originalData se disponíveis
+  const eventData = ticket.originalData?.event || {
+    title: ticket.eventName,
+    description: ticket.eventDescription,
+    location: ticket.eventLocation,
+    img: ticket.eventImage,
+    province: ticket.eventProvince
+  };
 
   return (
     <AnimatePresence>
@@ -249,17 +280,15 @@ export function QRModal({
                             </div>
 
                             {/* Código do Ticket */}
-                            {ticket.originalData.ticketUser && (
-                              <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
-                                <Ticket className="w-4 h-4 text-primary" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Código do Ticket</p>
-                                  <p className="font-mono font-bold text-primary">
-                                    {ticket.originalData.ticketUser.code}
-                                  </p>
-                                </div>
+                            <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                              <Ticket className="w-4 h-4 text-primary" />
+                              <div>
+                                <p className="text-sm text-muted-foreground">Código do Ticket</p>
+                                <p className="font-mono font-bold text-primary">
+                                  {ticket.ticketCode}
+                                </p>
                               </div>
-                            )}
+                            </div>
                           </div>
                         </motion.div>
                       )}
@@ -282,6 +311,16 @@ export function QRModal({
                           className="px-6 pb-6"
                         >
                           <div className="space-y-4">
+                            {eventData.img && (
+                              <div className="mb-4">
+                                <img 
+                                  src={eventData.img} 
+                                  alt={eventData.title}
+                                  className="w-full h-48 object-cover rounded-lg"
+                                />
+                              </div>
+                            )}
+
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                                 <Calendar className="w-5 h-5 text-primary" />
@@ -313,10 +352,20 @@ export function QRModal({
                               <div>
                                 <p className="text-sm text-muted-foreground">Local</p>
                                 <p className="font-medium text-foreground">
-                                  {ticket.eventLocation}
+                                  {eventData.location}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {eventData.province}
                                 </p>
                               </div>
                             </div>
+
+                            {eventData.description && (
+                              <div className="mt-4 p-3 bg-muted/30 rounded-lg">
+                                <p className="text-sm text-muted-foreground mb-1">Descrição</p>
+                                <p className="text-foreground">{eventData.description}</p>
+                              </div>
+                            )}
                           </div>
                         </motion.div>
                       )}
@@ -402,15 +451,22 @@ export function QRModal({
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="space-y-1">
                               <p className="text-muted-foreground">Tipo de Bilhete</p>
-                              <p className="font-medium text-foreground">
-                                {ticket.ticketType}
+                              <p className="font-medium text-foreground capitalize">
+                                {ticket.ticketName} ({ticket.ticketType})
                               </p>
                             </div>
 
                             <div className="space-y-1">
-                              <p className="text-muted-foreground">Preço Unitário</p>
+                              <p className="text-muted-foreground">Preço</p>
                               <p className="font-medium text-foreground text-green-600">
                                 {formatCurrency(ticket.price)}
+                              </p>
+                            </div>
+
+                            <div className="space-y-1">
+                              <p className="text-muted-foreground">Quantidade</p>
+                              <p className="font-medium text-foreground">
+                                {ticket.quantity}
                               </p>
                             </div>
 
@@ -428,14 +484,21 @@ export function QRModal({
                                 ticket.paymentStatus === 'pending' ? 'text-yellow-600' : 'text-red-600'
                               }`}>
                                 {ticket.paymentStatus === 'confirmed' ? 'Confirmado' : 
-                                 ticket.paymentStatus === 'pending' ? 'Pendente' : 'Falhado'}
+                                 ticket.paymentStatus === 'pending' ? 'Pendente' : 'Cancelado'}
+                              </p>
+                            </div>
+
+                            <div className="space-y-1">
+                              <p className="text-muted-foreground">Data de Expiração</p>
+                              <p className="font-medium text-foreground">
+                                {formatDateTime(ticket.expiresAt)}
                               </p>
                             </div>
 
                             <div className="space-y-1 col-span-2">
                               <p className="text-muted-foreground">Data da Compra</p>
                               <p className="font-medium text-foreground">
-                                {formatDateTime(ticket.originalData.paymentDate)}
+                                {ticket.purchaseDate}
                               </p>
                             </div>
 
@@ -464,7 +527,7 @@ export function QRModal({
                       ? 'Bilhete válido para entrada no evento' 
                       : ticket.status === 'pending'
                       ? 'Aguardando confirmação do pagamento'
-                      : 'Bilhete não está mais válido'
+                      : 'Bilhete expirado'
                     }
                   </div>
                   
