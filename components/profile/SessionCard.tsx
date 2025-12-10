@@ -343,7 +343,7 @@ export default function SessionCard({
       )}
 
       {/* Seção para gerar QR Code se não existir e o ticket estiver ativo */}
-      {!ticket.qrCode && ticket.status === 'active' && (
+      {/* {!ticket.qrCode && ticket.status === 'active' && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -372,7 +372,7 @@ export default function SessionCard({
             </button>
           </div>
         </motion.div>
-      )}
+      )} */}
 
       {/* Mensagem para tickets expirados */}
       {ticket.status === 'expired' && (

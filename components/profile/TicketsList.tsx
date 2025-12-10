@@ -120,18 +120,18 @@ export function TicketsList({
               Gerencia todos os teus bilhetes comprados
             </p>
           </div>
-          <button
+          {/* <button
             onClick={onRefreshTickets}
             disabled={loading}
             className="flex items-center gap-2 px-4 py-2 text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors disabled:opacity-50"
           >
             <span>🔄</span>
             Actualizar
-          </button>
+          </button> */}
         </div>
         
         {/* Estatísticas rápidas */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
           <div className="bg-card p-3 rounded-xl border border-border">
             <p className="text-sm text-muted-foreground">Total</p>
             <p className="text-2xl font-bold text-foreground">{summary.totalTickets}</p>
@@ -144,15 +144,15 @@ export function TicketsList({
             <p className="text-sm text-muted-foreground">Expirados</p>
             <p className="text-2xl font-bold text-red-600">{summary.expiredTickets}</p>
           </div>
-          <div className="bg-card p-3 rounded-xl border border-border">
+          {/* <div className="bg-card p-3 rounded-xl border border-border">
             <p className="text-sm text-muted-foreground">Total Gasto</p>
             <p className="text-xl font-bold text-foreground">{formatCurrency(summary.totalAmount)}</p>
-          </div>
+          </div> */}
         </div>
       </div>
 
       {/* Filtros */}
-      {localTickets.length > 0 && (
+      {/* {localTickets.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-2">
           <button className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium whitespace-nowrap">
             Todos ({localTickets.length})
@@ -169,7 +169,7 @@ export function TicketsList({
             </button>
           )}
         </div>
-      )}
+      )} */}
 
       {/* Lista de Tickets */}
       {activeTickets.length > 0 && (
