@@ -75,9 +75,9 @@ export default function LoginForm() {
       <div className="p-8">
         <div className="text-center mb-4">
           <h2 className="text-2xl font-bold">Bem-vindo de volta!</h2>
-          <p className="text-muted-foreground text-sm">
-            Retome seu aprendizado e alcance novos horizontes
-          </p>
+            <p className="text-muted-foreground text-sm">
+            Compre e faça gestão dos seus bilhetes
+            </p>
         </div>
 
         <form onSubmit={handleSubmit(handleLogin)} className="space-y-4">

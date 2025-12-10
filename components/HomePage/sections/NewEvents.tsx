@@ -196,7 +196,7 @@ export default function RecentEvents() {
   if (loading) {
     return (
       <section className="py-16 bg-background">
-        <div className="container mx-auto px-4 max-w-7xl">
+        <div className="container mx-auto px-8 max-w-7xl">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">A carregar eventos recentes...</p>
@@ -222,7 +222,7 @@ export default function RecentEvents() {
 
   return (
     <section className="py-16 bg-background">
-      <div className="container mx-auto px-4 max-w-7xl">
+      <div className="container mx-auto px-8 max-w-7xl">
         
         {/* Header */}
         <motion.div
