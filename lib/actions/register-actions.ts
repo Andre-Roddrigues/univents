@@ -11,7 +11,7 @@ export async function registerUser(payload: {
   bairro: string;
 }) {
   try {
-    const res = await fetch("https://backend-eventos.unitec.academy/auth/register", {
+    const res = await fetch("https://backend.unitec.co.mz/auth/register", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
