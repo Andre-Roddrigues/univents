@@ -2,13 +2,13 @@ import { z } from "zod";
 
 export const registerSchema = z
   .object({
-    name: z
+    nome: z
       .string()
       .min(2, "Nome deve ter pelo menos 2 caracteres")
       .max(50, "Nome deve ter no máximo 50 caracteres")
       .regex(/^[a-zA-ZÀ-ÿ\s]+$/, "Nome deve conter apenas letras"),
 
-    lastName: z
+    apelido: z
       .string()
       .min(2, "Apelido deve ter pelo menos 2 caracteres")
       .max(50, "Apelido deve ter no máximo 50 caracteres")

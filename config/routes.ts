@@ -4,7 +4,7 @@ const API_BASE_URL_CO = `https://backend.unitec.co.mz`;
 const API_MPESA = process.env.NEXT_PUBLIC_API_MPESA || "";
 
 export const routes = {
-  backend_url:`https://backend-eventos.unitec.academy`,
+  backend_url:`${API_BASE_URL}`,
 
   //auth routes
   // login: `${API_BASE_URL}/auth/login`,
@@ -16,6 +16,7 @@ export const routes = {
   reset_password: `${API_BASE_URL}/reset-password`,
   payments_transference_create: `${API_BASE_URL}/payments/transference/create`,
   carts: `${API_BASE_URL}/carts`,
+  events: `${API_BASE_URL}/events`,
   payments_transfer_proof: `${API_BASE_URL}/payments/transfer-proof`,
   payments_create: `${API_BASE_URL}/payments/create`,
   deliveries: `${API_BASE_URL}/deliveries`,

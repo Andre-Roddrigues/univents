@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Calendar, 
-  MapPin, 
-  Clock, 
-  Users, 
-  Ticket, 
+import {
+  Calendar,
+  MapPin,
+  Clock,
+  Users,
+  Ticket,
   Star,
   ArrowLeft,
   CreditCard,
@@ -15,13 +15,15 @@ import {
   Shield,
   CheckCircle,
   Plus,
-  Minus
+  Minus,
+  LogIn
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ButtonCart from '@/components/navbar/ButtonCart';
-import { createCart } from '@/lib/actions/cart-actions';
 import ButtonOpenModalPay from '@/components/Eventos/comprar/ButtonOpenModalPay';
+import { routes } from "@/config/routes";
+import { getSession, isAuthenticated } from '@/lib/actions/auth-actions';
 
 // Interface baseada na API real
 interface ApiEvent {
@@ -116,9 +118,45 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCartFeedback, setShowCartFeedback] = useState(false);
-  
+  const [isAuthenticatedState, setIsAuthenticatedState] = useState<boolean>(false);
+  const [authLoading, setAuthLoading] = useState(true);
+
   // Estado para gerenciar quantidades de cada bilhete
   const [ticketQuantities, setTicketQuantities] = useState<{[key: string]: number}>({});
+
+  // Verificar autenticação do usuário usando server action
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const authStatus = await isAuthenticated();
+        setIsAuthenticatedState(authStatus);
+      } catch (err) {
+        console.error('Erro ao verificar autenticação:', err);
+        setIsAuthenticatedState(false);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  // Função para redirecionar para login
+  const redirectToLogin = () => {
+    // Salvar a URL atual para redirecionar de volta após o login
+    const currentPath = window.location.pathname;
+    sessionStorage.setItem('redirectAfterLogin', currentPath);
+    // router.push(`${routes.auth.login}?redirect=${encodeURIComponent(currentPath)}`);
+  };
+
+  // Função para verificar autenticação antes de qualquer ação
+  const requireAuth = (action: () => void) => {
+    if (!isAuthenticatedState) {
+      redirectToLogin();
+      return;
+    }
+    action();
+  };
 
   // Fetch event data from API
   useEffect(() => {
@@ -126,25 +164,25 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
       try {
         setLoading(true);
         console.log('🔄 Fetching event with ID:', params.id);
-        
+
         const response = await fetch(`https://backend-eventos.unitec.academy/events/${params.id}`);
-        
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         console.log('📦 Full API Response:', data);
-        
+
         if (data.success && data.event) {
           const apiEvent: ApiEvent = data.event;
           console.log('🎫 Complete event data:', apiEvent);
-          
+
           const tickets = apiEvent.tickets && Array.isArray(apiEvent.tickets) ? apiEvent.tickets : [];
-          
+
           console.log('✅ Processed tickets:', tickets);
           console.log('✅ Tickets length:', tickets.length);
-          
+
           if (tickets.length > 0) {
             tickets.forEach((ticket, index) => {
               console.log(`🎟️ Ticket ${index + 1}:`, {
@@ -160,7 +198,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
             console.log('❌ No tickets found or tickets is not an array');
             console.log('🛠️ Creating default tickets...');
           }
-          
+
           const transformedEvent: EventPurchaseData = {
             id: apiEvent.id,
             title: apiEvent.title,
@@ -243,16 +281,16 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
 
           console.log('✨ Final transformed event:', transformedEvent);
           console.log('🎯 Final ticketTypes:', transformedEvent.ticketTypes);
-          
+
           setEvent(transformedEvent);
-          
+
           // Inicializar quantidades como 0 para todos os bilhetes
           const initialQuantities: {[key: string]: number} = {};
           transformedEvent.ticketTypes.forEach(ticket => {
             initialQuantities[ticket.id] = 0;
           });
           setTicketQuantities(initialQuantities);
-          
+
         } else {
           console.log('❌ API response not successful:', data);
           throw new Error('Dados do evento não disponíveis');
@@ -270,54 +308,60 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
     }
   }, [params.id]);
 
-  // Funções para gerenciar quantidades
+  // Funções para gerenciar quantidades (com verificação de autenticação)
   const increaseQuantity = (ticketId: string) => {
-    if (!event) return;
-    
-    const ticket = event.ticketTypes.find(t => t.id === ticketId);
-    if (!ticket) return;
-    
-    const currentQuantity = ticketQuantities[ticketId] || 0;
-    const maxQuantity = Math.min(ticket.availableQuantity, 10);
-    
-    if (currentQuantity < maxQuantity) {
-      setTicketQuantities(prev => ({
-        ...prev,
-        [ticketId]: currentQuantity + 1
-      }));
-    }
+    requireAuth(() => {
+      if (!event) return;
+
+      const ticket = event.ticketTypes.find(t => t.id === ticketId);
+      if (!ticket) return;
+
+      const currentQuantity = ticketQuantities[ticketId] || 0;
+      const maxQuantity = Math.min(ticket.availableQuantity, 10);
+
+      if (currentQuantity < maxQuantity) {
+        setTicketQuantities(prev => ({
+          ...prev,
+          [ticketId]: currentQuantity + 1
+        }));
+      }
+    });
   };
 
   const decreaseQuantity = (ticketId: string) => {
-    const currentQuantity = ticketQuantities[ticketId] || 0;
-    
-    if (currentQuantity > 0) {
-      setTicketQuantities(prev => ({
-        ...prev,
-        [ticketId]: currentQuantity - 1
-      }));
-    }
+    requireAuth(() => {
+      const currentQuantity = ticketQuantities[ticketId] || 0;
+
+      if (currentQuantity > 0) {
+        setTicketQuantities(prev => ({
+          ...prev,
+          [ticketId]: currentQuantity - 1
+        }));
+      }
+    });
   };
 
   const setQuantity = (ticketId: string, quantity: number) => {
-    if (!event) return;
-    
-    const ticket = event.ticketTypes.find(t => t.id === ticketId);
-    if (!ticket) return;
-    
-    const maxQuantity = Math.min(ticket.availableQuantity, 10);
-    const newQuantity = Math.max(0, Math.min(quantity, maxQuantity));
-    
-    setTicketQuantities(prev => ({
-      ...prev,
-      [ticketId]: newQuantity
-    }));
+    requireAuth(() => {
+      if (!event) return;
+
+      const ticket = event.ticketTypes.find(t => t.id === ticketId);
+      if (!ticket) return;
+
+      const maxQuantity = Math.min(ticket.availableQuantity, 10);
+      const newQuantity = Math.max(0, Math.min(quantity, maxQuantity));
+
+      setTicketQuantities(prev => ({
+        ...prev,
+        [ticketId]: newQuantity
+      }));
+    });
   };
 
   // Calcular totais
   const getCartItems = (): CartItem[] => {
     if (!event) return [];
-    
+
     return event.ticketTypes
       .filter(ticket => (ticketQuantities[ticket.id] || 0) > 0)
       .map(ticket => ({
@@ -352,23 +396,26 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
   };
 
   const handlePurchase = async () => {
-    if (!event || cartItems.length === 0) return;
-    
-    setIsProcessing(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      // Aqui você precisará adaptar para lidar com múltiplos tipos de bilhetes
-      router.push(`/compra-confirmada?event=${event.id}&total=${total}`);
-    } catch (err) {
-      console.error('Erro no processamento:', err);
-    } finally {
-      setIsProcessing(false);
-    }
+    requireAuth(async () => {
+      if (!event || cartItems.length === 0) return;
+
+      setIsProcessing(true);
+      try {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        router.push(`/compra-confirmada?event=${event.id}&total=${total}`);
+      } catch (err) {
+        console.error('Erro no processamento:', err);
+      } finally {
+        setIsProcessing(false);
+      }
+    });
   };
 
   const handleAddToCart = () => {
-    setShowCartFeedback(true);
-    setTimeout(() => setShowCartFeedback(false), 3000);
+    requireAuth(() => {
+      setShowCartFeedback(true);
+      setTimeout(() => setShowCartFeedback(false), 3000);
+    });
   };
 
   const paymentMethods = [
@@ -376,6 +423,18 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
     { id: 'emola', name: 'eMola', icon: CreditCard, description: 'Cartão ou transferência' },
     { id: 'card', name: 'Cartão de Crédito', icon: CreditCard, description: 'Visa, Mastercard' },
   ];
+
+  // Mostrar loading enquanto verifica autenticação
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Verificando sessão...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -415,7 +474,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
       {/* Header */}
       <div className="bg-card border-b border-border">
         <div className="container mx-auto px-4 py-4">
-          <Link 
+          <Link
             href="/eventos"
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -426,8 +485,35 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
       </div>
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* Banner de autenticação necessário */}
+        {!isAuthenticatedState && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl"
+          >
+            <div className="flex items-center gap-3">
+              <LogIn className="w-5 h-5 text-yellow-600" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-yellow-800">
+                  Sessão não iniciada
+                </h3>
+                <p className="text-sm text-yellow-700">
+                  Para comprar bilhetes ou adicionar ao carrinho, por favor{' '}
+                  <Link
+                    href="/login"
+                    className="font-semibold text-yellow-900 hover:text-yellow-800 underline"
+                  >
+                    Login
+                  </Link>
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+
           {/* Coluna Esquerda - Informações do Evento */}
           <div className="lg:col-span-2">
             <motion.div
@@ -435,7 +521,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
               animate={{ opacity: 1, x: 0 }}
               className="space-y-8"
             >
-              
+
               {/* Cabeçalho do Evento */}
               <div>
                 <div className="flex items-center gap-2 mb-4">
@@ -448,11 +534,11 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                     </span>
                   )}
                 </div>
-                
+
                 <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
                   {event.title}
                 </h1>
-                
+
                 <div className="flex items-center gap-4 text-sm text-muted-foreground mb-6">
                   <div className="flex items-center gap-1">
                     <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
@@ -472,18 +558,18 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
               {/* Detalhes do Evento */}
               <div className="bg-card border border-border rounded-xl p-6">
                 <h2 className="text-xl font-semibold text-foreground mb-6">Detalhes do Evento</h2>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
                       <Calendar className="w-5 h-5 text-primary" />
                       <div>
                         <div className="font-medium text-foreground">
-                          {new Date(event.date).toLocaleDateString('pt-MZ', { 
-                            weekday: 'long', 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
+                          {new Date(event.date).toLocaleDateString('pt-MZ', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
                           })}
                         </div>
                         <div className="text-sm text-muted-foreground">
@@ -491,7 +577,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-start gap-3">
                       <MapPin className="w-5 h-5 text-primary mt-0.5" />
                       <div>
@@ -500,7 +586,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
                       <Users className="w-5 h-5 text-primary" />
@@ -509,7 +595,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                         <div className="text-sm text-muted-foreground">{event.organizer}</div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-3">
                       <Shield className="w-5 h-5 text-primary" />
                       <div>
@@ -519,7 +605,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Descrição Longa */}
                 <div className="mt-6 pt-6 border-t border-border">
                   <h3 className="font-semibold text-foreground mb-3">Sobre este evento</h3>
@@ -532,7 +618,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
               {/* Seleção de Bilhetes */}
               <div className="bg-card border border-border rounded-xl p-6">
                 <h2 className="text-xl font-semibold text-foreground mb-6">Selecionar Bilhetes</h2>
-                
+
                 {event.ticketTypes.length === 0 ? (
                   <div className="text-center py-8">
                     <Ticket className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -544,7 +630,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                       const typeColors = getTicketTypeColor(ticket.type);
                       const quantity = ticketQuantities[ticket.id] || 0;
                       const maxQuantity = Math.min(ticket.availableQuantity, 10);
-                      
+
                       return (
                         <div
                           key={ticket.id}
@@ -567,19 +653,19 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                                   </span>
                                 )}
                               </div>
-                              
+
                               {/* 🔥 PREÇO DESTACADO */}
                               <div className="text-3xl font-bold text-foreground mb-4">
                                 {ticket.price.toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}
                               </div>
-                              
+
                               <div className="text-sm text-muted-foreground mb-4">
                                 <span className={`font-medium ${ticket.availableQuantity < 10 ? 'text-orange-500' : 'text-green-500'}`}>
                                   {ticket.availableQuantity} bilhetes disponíveis
                                 </span>
                                 <span className="text-xs ml-2">(máx. {maxQuantity} por compra)</span>
                               </div>
-                              
+
                               {/* 🔥 BENEFÍCIOS - APENAS CHECKCIRCLE */}
                               {ticket.benefits.length > 0 ? (
                                 <div className="mb-4">
@@ -604,7 +690,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                                   <p className="text-sm text-muted-foreground">Acesso básico ao evento</p>
                                 </div>
                               )}
-                              
+
                               {/* 🔥 CONTROLE DE QUANTIDADE PARA CADA BILHETE */}
                               <div className="mt-6 pt-4 border-t border-border">
                                 <label className="block text-sm font-medium text-foreground mb-3">
@@ -615,7 +701,8 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                                     <button
                                       onClick={() => decreaseQuantity(ticket.id)}
                                       className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                                      disabled={quantity <= 0}
+                                      disabled={quantity <= 0 || !isAuthenticatedState}
+                                      title={!isAuthenticatedState ? "Faça login para selecionar bilhetes" : ""}
                                     >
                                       <Minus className="w-4 h-4" />
                                     </button>
@@ -626,11 +713,14 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                                       value={quantity}
                                       onChange={(e) => setQuantity(ticket.id, parseInt(e.target.value) || 0)}
                                       className="px-4 py-2 font-medium text-foreground w-16 text-center border-0 bg-transparent focus:outline-none"
+                                      readOnly={!isAuthenticatedState}
+                                      title={!isAuthenticatedState ? "Faça login para selecionar bilhetes" : ""}
                                     />
                                     <button
                                       onClick={() => increaseQuantity(ticket.id)}
                                       className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                                      disabled={quantity >= maxQuantity}
+                                      disabled={quantity >= maxQuantity || !isAuthenticatedState}
+                                      title={!isAuthenticatedState ? "Faça login para selecionar bilhetes" : ""}
                                     >
                                       <Plus className="w-4 h-4" />
                                     </button>
@@ -641,8 +731,19 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                                     </span>
                                   </div>
                                 </div>
+                                {!isAuthenticatedState && (
+                                  <p className="text-sm text-red-500 mt-2">
+                                    <button
+                                      onClick={redirectToLogin}
+                                      className="font-semibold underline hover:text-red-600"
+                                    >
+                                      Faça login
+                                    </button>
+                                    {' '}para selecionar bilhetes
+                                  </p>
+                                )}
                               </div>
-                              
+
                               <div className="text-xs text-muted-foreground mt-4 pt-3 border-t border-border">
                                 <strong>Último dia para pagamento:</strong>{' '}
                                 {new Date(ticket.lastDayPayment).toLocaleDateString('pt-MZ', {
@@ -670,15 +771,17 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
               transition={{ delay: 0.2 }}
               className="sticky top-8 space-y-6"
             >
-              
+
               {/* Resumo do Pedido */}
               <div className="bg-card border border-border rounded-xl p-6">
                 <h2 className="text-xl font-semibold text-foreground mb-4">
                   Resumo do Pedido {totalItems > 0 && `(${totalItems} item${totalItems > 1 ? 's' : ''})`}
                 </h2>
-                
+
                 {cartItems.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">Nenhum bilhete selecionado</p>
+                  <p className="text-muted-foreground text-center py-4">
+                    {!isAuthenticatedState ? "Faça login para selecionar bilhetes" : "Nenhum bilhete selecionado"}
+                  </p>
                 ) : (
                   <>
                     <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
@@ -696,7 +799,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                         </div>
                       ))}
                     </div>
-                    
+
                     <div className="border-t border-border pt-4">
                       <div className="flex justify-between items-center text-lg font-bold text-foreground">
                         <span>Total</span>
@@ -711,7 +814,7 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
               {cartItems.length > 0 && (
                 <div className="bg-card border border-border rounded-xl p-6">
                   <h2 className="text-xl font-semibold text-foreground mb-4">Método de Pagamento</h2>
-                  
+
                   <div className="space-y-3">
                     {paymentMethods.map((method) => (
                       <div
@@ -720,8 +823,8 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                           selectedPayment === method.id
                             ? 'border-primary bg-primary/5'
                             : 'border-border hover:border-primary/50'
-                        }`}
-                        onClick={() => setSelectedPayment(method.id)}
+                        } ${!isAuthenticatedState ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => isAuthenticatedState && setSelectedPayment(method.id)}
                       >
                         <div className="flex items-center gap-3">
                           <method.icon className="w-5 h-5 text-primary" />
@@ -736,66 +839,68 @@ export default function EventPurchasePage({ params }: { params: { id: string } }
                       </div>
                     ))}
                   </div>
+                  {!isAuthenticatedState && (
+                    <p className="text-sm text-red-500 mt-3">
+                      <button
+                        onClick={redirectToLogin}
+                        className="font-semibold underline hover:text-red-600"
+                      >
+                        Faça login
+                      </button>
+                      {' '}para selecionar método de pagamento
+                    </p>
+                  )}
                 </div>
               )}
 
               {/* Botões de Ação */}
               <div className="space-y-4 mt-12">
-                {/* Botão de Compra Imediata */}
-                {/* <button
-                  onClick={handlePurchase}
-                  disabled={isProcessing || cartItems.length === 0}
-                  className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-bold text-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
-                >
-                  {isProcessing ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                      Processando...
-                    </>
-                  ) : cartItems.length === 0 ? (
-                    'Selecione bilhetes'
-                  ) : (
-                    `Comprar ${totalItems} Bilhete${totalItems > 1 ? 's' : ''} - ${total.toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}`
-                  )}
-                </button> */}
-                 <ButtonOpenModalPay
-    event={{
-      id: event.id,
-      title: event.title
-    }}
-    tickets={event.ticketTypes.map(ticket => ({
-      id: ticket.id,
-      name: ticket.name,
-      price: ticket.price,
-      type: ticket.type,
-      quantity: ticketQuantities[ticket.id] || 0
-    }))}
-    fullWidth
-    size="lg"
-  />
+                {/* Componente ButtonOpenModalPay com verificação de autenticação */}
+                {isAuthenticatedState ? (
+                  <ButtonOpenModalPay
+                    event={{
+                      id: event.id,
+                      title: event.title
+                    }}
+                    tickets={event.ticketTypes.map(ticket => ({
+                      id: ticket.id,
+                      name: ticket.name,
+                      price: ticket.price,
+                      type: ticket.type,
+                      quantity: ticketQuantities[ticket.id] || 0
+                    }))}
+                    fullWidth
+                    size="lg"
+                    disabled={cartItems.length === 0}
+                  />
+                ) : (
+                  <button
+                    onClick={redirectToLogin}
+                    className="w-full py-4 bg-gray-400 text-gray-100 rounded-xl font-bold text-lg hover:bg-gray-500 transition-all duration-300 flex items-center justify-center gap-2"
+                  >
+                    <LogIn className="w-5 h-5" />
+                    Faça login para comprar
+                  </button>
+                )}
 
                 {/* Botão Adicionar ao Carrinho */}
                 {event && cartItems.length > 0 && (
-                  <ButtonCart
-                    event={event}
-                    cartItems={cartItems}
-                    onAddToCart={handleAddToCart}
-                  />
-                )}
-
-                {/* Feedback de adição ao carrinho */}
-                <AnimatePresence>
-                  {/* {showCartFeedback && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className="p-4 bg-green-100 border border-green-300 rounded-lg text-green-800 text-center"
+                  isAuthenticatedState ? (
+                    <ButtonCart
+                      event={event}
+                      cartItems={cartItems}
+                      onAddToCart={handleAddToCart}
+                    />
+                  ) : (
+                    <button
+                      onClick={redirectToLogin}
+                      className="w-full py-4 bg-secondary text-secondary-foreground rounded-xl font-bold text-lg hover:bg-secondary/90 transition-all duration-300 flex items-center justify-center gap-2"
                     >
-                      ✅ Adicionado ao carrinho! ({totalItems} bilhete{totalItems > 1 ? 's' : ''})
-                    </motion.div>
-                  )} */}
-                </AnimatePresence>
+                      <LogIn className="w-5 h-5" />
+                      Faça login para adicionar ao carrinho
+                    </button>
+                  )
+                )}
               </div>
 
               {/* Garantias */}

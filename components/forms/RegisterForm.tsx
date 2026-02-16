@@ -39,8 +39,8 @@ export default function RegisterForm() {
   const handleRegister = async (data: RegisterSchema) => {
     try {
       const payload = {
-        name: data.name,
-        lastname: data.lastName,
+        nome: data.nome,
+        apelido: data.apelido,
         username: data.email.split("@")[0],
         email: data.email,
         password: data.password,
@@ -88,8 +88,8 @@ export default function RegisterForm() {
               label="Nome:"
               placeholder="Seu nome"
               type="text"
-              {...register("name")}
-              errorMessage={errors.name?.message}
+              {...register("nome")}
+              errorMessage={errors.nome?.message}
             />
 
             <InputField
@@ -97,8 +97,8 @@ export default function RegisterForm() {
               label="Apelido:"
               placeholder="Seu apelido"
               type="text"
-              {...register("lastName")}
-              errorMessage={errors.lastName?.message}
+              {...register("apelido")}
+              errorMessage={errors.apelido?.message}
             />
           </div>
 

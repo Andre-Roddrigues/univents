@@ -146,3 +146,13 @@ export async function logout() {
   cookies().delete("session");
   cookies().delete("token");
 }
+
+export async function getSession() {
+  const token = cookies().get("token")?.value || null;
+  return { token };
+}
+
+export async function isAuthenticated(): Promise<boolean> {
+  const session = await getSession();
+  return !!session.token;
+}

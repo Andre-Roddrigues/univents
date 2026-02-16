@@ -8,6 +8,7 @@ import EventCategory, { Category } from './EventCategory';
 import EventFilter, { DateFilter } from './EventFilter';
 import { useRouter } from 'next/navigation';
 import { getEventCategories } from '@/lib/actions/categories-actions';
+import { routes } from '@/config/routes';
 
 // Interface baseada na API real - ATUALIZADA
 interface ApiEvent {
@@ -86,7 +87,7 @@ export default function AllEventsPage() {
         setLoading(true);
         
         // Fetch eventos
-        const eventsResponse = await fetch('https://backend-eventos.unitec.academy/events');
+        const eventsResponse = await fetch(routes.events);
         
         if (!eventsResponse.ok) {
           throw new Error('Erro ao carregar eventos');

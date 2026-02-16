@@ -1,8 +1,8 @@
 "use server";
 
 export async function registerUser(payload: {
-  name: string;
-  lastname: string;
+  nome: string;
+  apelido: string;
   username: string;
   email: string;
   password: string;
