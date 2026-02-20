@@ -32,43 +32,41 @@ export default function LoginForm() {
     resolver: zodResolver(loginSchema),
   });
 
-  const handleLogin = async (data: LoginSchema) => {
-    try {
-      const response = await login(data.identifier, data.password);
+ const handleLogin = async (data: LoginSchema) => {
+  try {
+    const response = await login(data.identifier, data.password);
 
-      if (!response?.success) {
-        toast.error("Erro ao fazer login", {
-          description: response?.message ?? "Credenciais inválidas",
-        });
-        return;
-      }
-
-      // 👉 Dados vêm em response.userData (segundo a resposta que você enviou)
-      const user = response.userData;
-
-      if (!user) {
-        throw new Error("userData não encontrado na resposta do servidor.");
-      }
-
-      const fullName = `${user.name ?? ""} ${user.lastname ?? ""}`.trim();
-
-      // Toaster
-      toast.success(`Bem-vindo, ${fullName}!`, {
-        description: `Role: ${user.role ?? "usuário"}`,
+    // 👉 Se não veio token, é erro
+    if (!response?.token) {
+      toast.error("Erro ao fazer login", {
+        description: response?.message ?? "Credenciais inválidas",
       });
-
-      // Redirecionamento baseado no role
-      if (user.role === "admin") {
-        router.push("/eventos/dashboard");
-      } else {
-        router.push(redirectUrl);
-      }
-
-    } catch (error) {
-      console.error("Erro inesperado ao tentar fazer login.", error);
-      toast.error("Erro inesperado ao tentar fazer login.");
+      return;
     }
-  };
+
+    const user = response.user;
+
+    if (!user) {
+      toast.error("Erro ao obter dados do usuário.");
+      return;
+    }
+
+    const fullName = `${user.nome ?? ""} ${user.apelido ?? ""}`.trim();
+
+    toast.success(`Bem-vindo, ${fullName}!`);
+
+    if (user.userType === "admin") {
+      router.push("/eventos/dashboard");
+    } else {
+      router.push(redirectUrl);
+    }
+
+  } catch (error) {
+    console.error("Erro inesperado ao tentar fazer login.", error);
+    toast.error("Erro inesperado ao tentar fazer login.");
+  }
+};
+
 
   return (
     <div className="bg-white/70 backdrop-blur-xl max-w-md w-full h-full shadow-2xl border border-white/20 py-4 overflow-hidden">

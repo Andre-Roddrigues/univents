@@ -1,4 +1,4 @@
-// app/profile/page.tsx
+// app/profile/page.tsx (parte da geração do QR code)
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -11,6 +11,7 @@ import Stats from '@/components/profile/StatsCards';
 import { QRModal } from '@/components/profile/QrModdal';
 import { useQRCode } from '@/hooks/useQrCode';
 import type { LocalTicket } from '@/components/profile/QrModdal';
+import { Ticket } from 'lucide-react';
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'tickets'>('profile');
@@ -21,7 +22,7 @@ export default function ProfilePage() {
   const [generatingQR, setGeneratingQR] = useState<string | null>(null);
 
   // Hooks customizados
-  const { qrCodeLoaded, generateQRCode } = useQRCode();
+  const { qrCodeLoaded, generateUltraSimpleQRCode } = useQRCode();
   
   // Usar o hook useTickets que já cuida de toda a lógica
   const {
@@ -52,7 +53,7 @@ export default function ProfilePage() {
       try {
         const session = await getSession();
         
-        if (session.token) {
+        if (session?.token) {
           setToken(session.token);
           
           // Decodificar o token JWT para obter dados do usuário
@@ -69,8 +70,6 @@ export default function ProfilePage() {
           } catch (decodeError) {
             console.error('Erro ao decodificar token:', decodeError);
           }
-        } else {
-          console.error('Usuário não autenticado');
         }
       } catch (err) {
         console.error('Erro ao carregar sessão:', err);
@@ -81,53 +80,25 @@ export default function ProfilePage() {
   }, []);
 
   // ================================
-  // GERAR QR CODE EM TEMPO REAL COM DADOS REAIS
+  // GERAR QR CODE SIMPLES (MENOS BARRAS)
   // ================================
-  const generateQRCodeRealTime = async (ticket: LocalTicket): Promise<string> => {
-    setGeneratingQR(ticket.id);
+  // No handleViewQRCode ou handleGenerateQR:
+const generateSimpleQR = async (ticket: LocalTicket): Promise<string> => {
+  setGeneratingQR(ticket.id);
+  
+  try {
+    // Usar o gerador ultra simples com apenas o código
+    // Isso resulta em um QR code com poucas barras e bem grossas
+    const qrCode = generateUltraSimpleQRCode(ticket.ticketCode);
     
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Usar dados reais da API para o QR Code
-        const qrData = JSON.stringify({
-          // Dados do Ticket (reais da API)
-          ticketId: ticket.ticketId,
-          ticketCode: ticket.ticketCode,
-          ticketType: ticket.ticketType,
-          ticketName: ticket.ticketName,
-          validationCode: ticket.ticketCode,
-          
-          // Dados do Evento (reais da API)
-          eventId: ticket.eventId,
-          eventName: ticket.eventName,
-          eventLocation: ticket.eventLocation,
-          eventDescription: ticket.eventDescription,
-          eventImage: ticket.eventImage,
-          eventProvince: ticket.eventProvince,
-          
-          // Dados do Pagamento
-          paymentId: ticket.id,
-          price: ticket.price,
-          expiresAt: ticket.expiresAt,
-          purchaseDate: new Date().toISOString(),
-          
-          // Dados do Usuário
-          userId: userData?.id,
-          userName: userProfile.name,
-          userEmail: userProfile.email,
-          
-          // Metadados
-          timestamp: new Date().toISOString(),
-          source: 'EventosApp',
-          securityHash: btoa(`${ticket.id}-${ticket.ticketCode}-${userData?.id}`).slice(0, 20)
-        });
-
-        const qrCode = generateQRCode(qrData);
-        setGeneratingQR(null);
-        resolve(qrCode);
-      }, 500);
-    });
-  };
+    setGeneratingQR(null);
+    return qrCode;
+  } catch (error) {
+    console.error('Erro ao gerar QR code:', error);
+    setGeneratingQR(null);
+    throw error;
+  }
+};
 
   // ================================
   // HANDLERS DE AÇÕES
@@ -142,20 +113,27 @@ export default function ProfilePage() {
   };
 
   const handleViewQRCode = async (ticketId: string) => {
-    const ticket = localTickets.find(t => t.id === ticketId);
-    if (!ticket) return;
+    try {
+      const ticket = localTickets.find(t => t.id === ticketId);
+      if (!ticket) return;
 
-    setSelectedTicket(ticket);
-    
-    // Se já tem QR Code, apenas abre o modal
-    if (ticket.qrCode) {
-      setQrModalOpen(true);
-      return;
-    }
+      setSelectedTicket(ticket);
+      
+      // Se já tem QR Code, apenas abre o modal
+      if (ticket.qrCode) {
+        setQrModalOpen(true);
+        return;
+      }
 
-    // Gera QR Code em tempo real
-    if (qrCodeLoaded) {
-      const newQrCode = await generateQRCodeRealTime(ticket);
+      // Verificar se a biblioteca QR está carregada
+      if (!qrCodeLoaded) {
+        console.warn('Aguardando carregamento da biblioteca QR...');
+        setTimeout(() => handleViewQRCode(ticketId), 500);
+        return;
+      }
+
+      // Gera QR Code simples
+      const newQrCode = await generateSimpleQR(ticket);
       
       // Atualiza o ticket com o novo QR Code
       updateTicketQRCode(ticketId, newQrCode);
@@ -163,65 +141,71 @@ export default function ProfilePage() {
       // Atualiza o ticket selecionado
       setSelectedTicket({ ...ticket, qrCode: newQrCode });
       setQrModalOpen(true);
+    } catch (error) {
+      console.error('Erro ao gerar QR Code:', error);
+      alert('Não foi possível gerar o QR Code. Tente novamente.');
     }
   };
 
   const handleGenerateQR = async (ticketId: string) => {
-    if (!qrCodeLoaded) {
-      console.warn('QR Code library not loaded yet');
-      return;
-    }
+    try {
+      if (!qrCodeLoaded) {
+        throw new Error('Biblioteca QR não carregada');
+      }
 
-    const ticket = localTickets.find(t => t.id === ticketId);
-    if (!ticket) {
-      console.warn('Bilhete não encontrado para gerar QR Code:', ticketId);
-      return;
-    }
+      const ticket = localTickets.find(t => t.id === ticketId);
+      if (!ticket) {
+        throw new Error('Bilhete não encontrado');
+      }
 
-    const newQrCode = await generateQRCodeRealTime(ticket);
-    updateTicketQRCode(ticketId, newQrCode);
+      const newQrCode = await generateSimpleQR(ticket);
+      updateTicketQRCode(ticketId, newQrCode);
+    } catch (error) {
+      console.error('Erro ao gerar QR Code:', error);
+      alert('Falha ao gerar QR Code. Por favor, tente novamente.');
+    }
   };
 
   const handleDownload = (ticketId: string) => {
-    const ticket = localTickets.find(t => t.id === ticketId);
-    if (!ticket || !ticket.qrCode) return;
-
     try {
+      const ticket = localTickets.find(t => t.id === ticketId);
+      if (!ticket || !ticket.qrCode) {
+        throw new Error('QR Code não disponível');
+      }
+
       const link = document.createElement('a');
       link.href = ticket.qrCode;
-      link.download = `bilhete-${ticket.ticketCode}.svg`;
+      link.download = `bilhete-${ticket.ticketCode}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (error) {
       console.error('Erro ao fazer download:', error);
+      alert('Não foi possível baixar o QR Code.');
     }
   };
 
   const handleShare = async (ticketId: string) => {
-    const ticket = localTickets.find(t => t.id === ticketId);
-    if (!ticket) return;
-
     try {
-      // Formatar a data de expiração para português
+      const ticket = localTickets.find(t => t.id === ticketId);
+      if (!ticket) return;
+
       const eventDate = new Date(ticket.expiresAt).toLocaleDateString('pt-MZ', {
-        weekday: 'long',
         day: 'numeric',
         month: 'long',
         year: 'numeric'
       });
 
-      const shareText = `🎫 Meu bilhete para ${ticket.eventName}\n📅 Data: ${eventDate}\n📍 Local: ${ticket.eventLocation}\n🎪 Tipo: ${ticket.ticketName} (${ticket.ticketType})\n💰 Valor: ${ticket.price} MZN\n🔗 Código: ${ticket.ticketCode}`;
+      const shareText = `🎫 ${ticket.eventName}\n📅 ${eventDate}\n📍 ${ticket.eventLocation}\n💰 ${ticket.price} MZN\n🔗 Código: ${ticket.ticketCode}`;
 
       if (navigator.share) {
         await navigator.share({
           title: `Bilhete - ${ticket.eventName}`,
           text: shareText,
-          url: window.location.href
         });
       } else {
         await navigator.clipboard.writeText(shareText);
-        alert('Informações do bilhete copiadas para a área de transferência! 📋');
+        alert('Informações copiadas! 📋');
       }
     } catch (err) {
       console.log('Erro ao partilhar:', err);
@@ -247,7 +231,6 @@ export default function ProfilePage() {
       };
     }
 
-    // Contar categorias de tickets
     const categories = localTickets.reduce((acc, ticket) => {
       const category = ticket.ticketName;
       acc[category] = (acc[category] || 0) + 1;
@@ -259,7 +242,6 @@ export default function ProfilePage() {
       { category: 'Nenhum', count: 0 }
     ).category;
 
-    // Contar eventos
     const events = localTickets.reduce((acc, ticket) => {
       const eventName = ticket.eventName;
       acc[eventName] = (acc[eventName] || 0) + 1;
@@ -272,7 +254,6 @@ export default function ProfilePage() {
     ).eventName;
 
     const uniqueEvents = new Set(localTickets.map(ticket => ticket.eventName));
-    const activeTickets = localTickets.filter(t => t.status === 'active');
     const totalSpent = localTickets.reduce((sum, ticket) => sum + ticket.price, 0);
 
     return {
@@ -289,6 +270,27 @@ export default function ProfilePage() {
   // RENDER
   // ================================
   const stats = getStats();
+
+  // Componente para quando não há bilhetes
+  const NoTicketsMessage = () => (
+    <div className="text-center py-16 px-4">
+      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 dark:bg-gray-800 mb-6">
+        <Ticket className="w-10 h-10 text-gray-400" />
+      </div>
+      <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+        Nenhum bilhete encontrado
+      </h3>
+      <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-8">
+        Você ainda não comprou nenhum bilhete. Explore os eventos disponíveis e garanta o seu lugar!
+      </p>
+      <button 
+        onClick={() => window.location.href = '/eventos'}
+        className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+      >
+        Ver eventos disponíveis
+      </button>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background py-8">
@@ -343,18 +345,32 @@ export default function ProfilePage() {
             onCancel={() => {}}
           />
         ) : (
-          <TicketsList
-            loading={loading}
-            error={error}
-            localTickets={localTickets}
-            summary={summary}
-            generatingQR={generatingQR}
-            onRefreshTickets={handleRefreshTickets}
-            onGenerateQR={handleGenerateQR}
-            onDownload={handleDownload}
-            onShare={handleShare}
-            onViewQRCode={handleViewQRCode}
-          />
+          <>
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6">
+                <p className="text-red-600 dark:text-red-400 text-center">
+                  Erro ao carregar bilhetes. Tente novamente mais tarde.
+                </p>
+              </div>
+            )}
+
+            {!loading && localTickets.length === 0 ? (
+              <NoTicketsMessage />
+            ) : (
+              <TicketsList
+                loading={loading}
+                error={error}
+                localTickets={localTickets}
+                summary={summary}
+                generatingQR={generatingQR}
+                onRefreshTickets={handleRefreshTickets}
+                onGenerateQR={handleGenerateQR}
+                onDownload={handleDownload}
+                onShare={handleShare}
+                onViewQRCode={handleViewQRCode}
+              />
+            )}
+          </>
         )}
 
         {/* Modal de QR Code */}
