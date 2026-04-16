@@ -92,7 +92,8 @@ export async function login(identifier: string, password: string) {
   try {
     const response = await axios.post(routes.login, { identifier, password });
 
-    if (response.status === 200 && response.data.token) {
+    // Verifica se a resposta tem a estrutura esperada com success: true
+    if (response.data?.success === true && response.data?.token) {
       const token = response.data.token;
 
       // Salva em "session"
@@ -110,9 +111,47 @@ export async function login(identifier: string, password: string) {
         sameSite: "strict",
         path: "/",
       });
+
+      // Retorna os dados do usuário junto com o token
+      return {
+        success: true,
+        message: response.data.message || "Login realizado com sucesso!",
+        user: response.data.user,
+        token: response.data.token
+      };
     }
 
-    return response.data;
+    // Se a resposta não tiver success: true, mas tiver token (fallback)
+    if (response.data?.token) {
+      const token = response.data.token;
+
+      cookies().set("session", token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        path: "/",
+      });
+
+      cookies().set("token", token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        path: "/",
+      });
+
+      return {
+        success: true,
+        message: "Login realizado com sucesso!",
+        user: response.data.user,
+        token: response.data.token
+      };
+    }
+
+    // Caso não tenha token, retorna erro
+    return {
+      success: false,
+      message: response.data?.message || "Erro ao fazer login"
+    };
   } catch (error) {
     if (axios.isAxiosError(error)) {
       return {
@@ -120,7 +159,10 @@ export async function login(identifier: string, password: string) {
         message: error.response?.data?.message || "Erro ao fazer login",
       };
     }
-    return { success: false, message: "Erro inesperado" };
+    return { 
+      success: false, 
+      message: "Erro inesperado ao fazer login" 
+    };
   }
 }
 

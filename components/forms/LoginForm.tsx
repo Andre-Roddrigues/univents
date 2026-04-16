@@ -32,50 +32,48 @@ export default function LoginForm() {
     resolver: zodResolver(loginSchema),
   });
 
- const handleLogin = async (data: LoginSchema) => {
-  try {
-    const response = await login(data.identifier, data.password);
+  const handleLogin = async (data: LoginSchema) => {
+    try {
+      const response = await login(data.identifier, data.password);
 
-    // 👉 Se não veio token, é erro
-    if (!response?.token) {
-      toast.error("Erro ao fazer login", {
-        description: response?.message ?? "Credenciais inválidas",
-      });
-      return;
+      // Verifica se o login foi bem sucedido pela propriedade success
+      if (!response?.success) {
+        toast.error("Erro ao fazer login", {
+          description: response?.message ?? "Credenciais inválidas",
+        });
+        return;
+      }
+
+      const user = response.user;
+
+      if (!user) {
+        toast.error("Erro ao obter dados do usuário.");
+        return;
+      }
+
+      const fullName = `${user.nome ?? ""} ${user.apelido ?? ""}`.trim();
+
+      toast.success(`Bem-vindo, ${fullName}!`);
+
+      if (user.userType === "admin") {
+        router.push("/eventos/dashboard");
+      } else {
+        router.push(redirectUrl);
+      }
+    } catch (error) {
+      console.error("Erro inesperado ao tentar fazer login.", error);
+      toast.error("Erro inesperado ao tentar fazer login.");
     }
-
-    const user = response.user;
-
-    if (!user) {
-      toast.error("Erro ao obter dados do usuário.");
-      return;
-    }
-
-    const fullName = `${user.nome ?? ""} ${user.apelido ?? ""}`.trim();
-
-    toast.success(`Bem-vindo, ${fullName}!`);
-
-    if (user.userType === "admin") {
-      router.push("/eventos/dashboard");
-    } else {
-      router.push(redirectUrl);
-    }
-
-  } catch (error) {
-    console.error("Erro inesperado ao tentar fazer login.", error);
-    toast.error("Erro inesperado ao tentar fazer login.");
-  }
-};
-
+  };
 
   return (
     <div className="bg-white/70 backdrop-blur-xl max-w-md w-full h-full shadow-2xl border border-white/20 py-4 overflow-hidden">
       <div className="p-8">
         <div className="text-center mb-4">
           <h2 className="text-2xl font-bold">Bem-vindo de volta!</h2>
-            <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-sm">
             Compre e faça gestão dos seus bilhetes
-            </p>
+          </p>
         </div>
 
         <form onSubmit={handleSubmit(handleLogin)} className="space-y-4">
