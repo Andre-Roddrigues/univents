@@ -36,14 +36,24 @@ export interface LocalTicket {
   status: 'active' | 'expired' | 'pending';
   qrCode?: string;
   
-  // Dados originais do evento (para compatibilidade com SessionCard)
+  // Dados originais da API (para compatibilidade)
   originalData?: {
-    event?: {
+    paymentId: string;
+    ticketId: string;
+    eventId: string;
+    type: string;
+    quantity: number;
+    paymentDate: string;
+    ticketUser: {
+      code: string;
+    };
+    event: {
+      id: string;
       title: string;
-      description?: string;
+      description: string;
       location: string;
-      img?: string;
-      province?: string;
+      img: string;
+      province: string;
     };
   };
 }
