@@ -35,6 +35,17 @@ export interface LocalTicket {
   // Status e QR Code
   status: 'active' | 'expired' | 'pending';
   qrCode?: string;
+  
+  // Dados originais do evento (para compatibilidade com SessionCard)
+  originalData?: {
+    event?: {
+      title: string;
+      description?: string;
+      location: string;
+      img?: string;
+      province?: string;
+    };
+  };
 }
 
 interface QRModalProps {
