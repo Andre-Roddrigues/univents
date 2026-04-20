@@ -6,7 +6,7 @@ export async function registerUser(payload: {
   username: string;
   email: string;
   password: string;
-  phone: string;
+  contacto: string;
   provincia: string;
   bairro: string;
 }) {

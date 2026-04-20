@@ -44,7 +44,7 @@ export default function RegisterForm() {
         username: data.email.split("@")[0],
         email: data.email,
         password: data.password,
-        phone: data.telephone,
+        contacto: data.telephone,
         provincia: "Maputo",
         bairro: "Centro",
       };
