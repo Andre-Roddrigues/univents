@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Calendar,
   MapPin,
@@ -16,14 +16,14 @@ import {
   CheckCircle,
   Plus,
   Minus,
-  LogIn,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import ButtonCart from "@/components/navbar/ButtonCart";
-import ButtonOpenModalPay from "@/components/Eventos/comprar/ButtonOpenModalPay";
+  LogIn
+} from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import ButtonCart from '@/components/navbar/ButtonCart';
+import ButtonOpenModalPay from '@/components/Eventos/comprar/ButtonOpenModalPay';
 import { routes } from "@/config/routes";
-import { getSession, isAuthenticated } from "@/lib/actions/auth-actions";
+import { getSession, isAuthenticated } from '@/lib/actions/auth-actions';
 
 // Interface baseada na API real
 interface ApiEvent {
@@ -110,26 +110,19 @@ interface CartItem {
   }>;
 }
 
-export default function EventPurchasePage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function EventPurchasePage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const [selectedPayment, setSelectedPayment] = useState("mpesa");
+  const [selectedPayment, setSelectedPayment] = useState('mpesa');
   const [isProcessing, setIsProcessing] = useState(false);
   const [event, setEvent] = useState<EventPurchaseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCartFeedback, setShowCartFeedback] = useState(false);
-  const [isAuthenticatedState, setIsAuthenticatedState] =
-    useState<boolean>(false);
+  const [isAuthenticatedState, setIsAuthenticatedState] = useState<boolean>(false);
   const [authLoading, setAuthLoading] = useState(true);
 
   // Estado para gerenciar quantidades de cada bilhete
-  const [ticketQuantities, setTicketQuantities] = useState<{
-    [key: string]: number;
-  }>({});
+  const [ticketQuantities, setTicketQuantities] = useState<{[key: string]: number}>({});
 
   // Verificar autenticação do usuário usando server action
   useEffect(() => {
@@ -138,7 +131,7 @@ export default function EventPurchasePage({
         const authStatus = await isAuthenticated();
         setIsAuthenticatedState(authStatus);
       } catch (err) {
-        console.error("Erro ao verificar autenticação:", err);
+        console.error('Erro ao verificar autenticação:', err);
         setIsAuthenticatedState(false);
       } finally {
         setAuthLoading(false);
@@ -152,7 +145,7 @@ export default function EventPurchasePage({
   const redirectToLogin = () => {
     // Salvar a URL atual para redirecionar de volta após o login
     const currentPath = window.location.pathname;
-    sessionStorage.setItem("redirectAfterLogin", currentPath);
+    sessionStorage.setItem('redirectAfterLogin', currentPath);
     // router.push(`${routes.auth.login}?redirect=${encodeURIComponent(currentPath)}`);
   };
 
@@ -170,30 +163,25 @@ export default function EventPurchasePage({
     const fetchEventData = async () => {
       try {
         setLoading(true);
-        console.log("🔄 Fetching event with ID:", params.id);
+        console.log('🔄 Fetching event with ID:', params.id);
 
-        const response = await fetch(
-          `https://backend-eventos.unitec.academy/events/${params.id}`,
-        );
+        const response = await fetch(`https://backend-eventos.unitec.academy/events/${params.id}`);
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log("📦 Full API Response:", data);
+        console.log('📦 Full API Response:', data);
 
         if (data.success && data.event) {
           const apiEvent: ApiEvent = data.event;
-          console.log("🎫 Complete event data:", apiEvent);
+          console.log('🎫 Complete event data:', apiEvent);
 
-          const tickets =
-            apiEvent.tickets && Array.isArray(apiEvent.tickets)
-              ? apiEvent.tickets
-              : [];
+          const tickets = apiEvent.tickets && Array.isArray(apiEvent.tickets) ? apiEvent.tickets : [];
 
-          console.log("✅ Processed tickets:", tickets);
-          console.log("✅ Tickets length:", tickets.length);
+          console.log('✅ Processed tickets:', tickets);
+          console.log('✅ Tickets length:', tickets.length);
 
           if (tickets.length > 0) {
             tickets.forEach((ticket, index) => {
@@ -203,12 +191,12 @@ export default function EventPurchasePage({
                 type: ticket.type,
                 availableQuantity: ticket.availableQuantity,
                 benefits: ticket.benefits,
-                benefitsLength: ticket.benefits?.length,
+                benefitsLength: ticket.benefits?.length
               });
             });
           } else {
-            console.log("❌ No tickets found or tickets is not an array");
-            console.log("🛠️ Creating default tickets...");
+            console.log('❌ No tickets found or tickets is not an array');
+            console.log('🛠️ Creating default tickets...');
           }
 
           const transformedEvent: EventPurchaseData = {
@@ -216,107 +204,100 @@ export default function EventPurchasePage({
             title: apiEvent.title,
             description: apiEvent.description,
             category: apiEvent.category?.id || apiEvent.categoryId,
-            categoryName: apiEvent.category?.name || "Sem Categoria",
-            date: apiEvent.startDate.split("T")[0],
-            startTime: new Date(apiEvent.startDate).toLocaleTimeString(
-              "pt-MZ",
-              {
-                hour: "2-digit",
-                minute: "2-digit",
-              },
-            ),
-            endTime: new Date(apiEvent.endDate).toLocaleTimeString("pt-MZ", {
-              hour: "2-digit",
-              minute: "2-digit",
+            categoryName: apiEvent.category?.name || 'Sem Categoria',
+            date: apiEvent.startDate.split('T')[0],
+            startTime: new Date(apiEvent.startDate).toLocaleTimeString('pt-MZ', {
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            endTime: new Date(apiEvent.endDate).toLocaleTimeString('pt-MZ', {
+              hour: '2-digit',
+              minute: '2-digit'
             }),
             location: apiEvent.location,
             address: `${apiEvent.location}, ${apiEvent.province}`,
             image: apiEvent.img,
             capacity: parseInt(apiEvent.capacity) || 0,
-            ticketsLeft: tickets.reduce(
-              (total, ticket) => total + ticket.availableQuantity,
-              0,
-            ),
+            ticketsLeft: tickets.reduce((total, ticket) => total + ticket.availableQuantity, 0),
             rating: parseFloat((Math.random() * 1 + 4).toFixed(1)),
             featured: Math.random() > 0.7,
-            organizer: apiEvent.organizer || "Organizador",
+            organizer: apiEvent.organizer || 'Organizador',
             longDescription: apiEvent.description,
-            ticketTypes: tickets.map((ticket) => ({
+            ticketTypes: tickets.map(ticket => ({
               id: ticket.id,
               name: ticket.name,
               price: ticket.price,
               type: ticket.type,
               availableQuantity: ticket.availableQuantity,
               benefits: ticket.benefits || [],
-              lastDayPayment: ticket.lastDayPayment,
-            })),
+              lastDayPayment: ticket.lastDayPayment
+            }))
           };
 
           if (transformedEvent.ticketTypes.length === 0) {
-            console.log("🛠️ Creating default ticket types...");
+            console.log('🛠️ Creating default ticket types...');
             transformedEvent.ticketTypes = [
               {
-                id: "default-normal",
-                name: "Bilhete Normal",
+                id: 'default-normal',
+                name: 'Bilhete Normal',
                 price: 500,
-                type: "normal",
+                type: 'normal',
                 availableQuantity: 50,
                 benefits: [
                   {
-                    id: "default-access",
-                    name: "Acesso ao Evento",
-                    description: "Acesso à área geral do evento",
-                    icon: null,
-                  },
+                    id: 'default-access',
+                    name: 'Acesso ao Evento',
+                    description: 'Acesso à área geral do evento',
+                    icon: null
+                  }
                 ],
-                lastDayPayment: apiEvent.startDate,
+                lastDayPayment: apiEvent.startDate
               },
               {
-                id: "default-vip",
-                name: "Bilhete VIP",
+                id: 'default-vip',
+                name: 'Bilhete VIP',
                 price: 1000,
-                type: "vip",
+                type: 'vip',
                 availableQuantity: 20,
                 benefits: [
                   {
-                    id: "vip-access",
-                    name: "Acesso VIP",
-                    description: "Acesso à área VIP",
-                    icon: null,
+                    id: 'vip-access',
+                    name: 'Acesso VIP',
+                    description: 'Acesso à área VIP',
+                    icon: null
                   },
                   {
-                    id: "vip-drink",
-                    name: "Bebida Grátis",
-                    description: "Uma bebida incluída",
-                    icon: null,
-                  },
+                    id: 'vip-drink',
+                    name: 'Bebida Grátis',
+                    description: 'Uma bebida incluída',
+                    icon: null
+                  }
                 ],
-                lastDayPayment: apiEvent.startDate,
-              },
+                lastDayPayment: apiEvent.startDate
+              }
             ];
             transformedEvent.ticketsLeft = 70;
           }
 
-          console.log("✨ Final transformed event:", transformedEvent);
-          console.log("🎯 Final ticketTypes:", transformedEvent.ticketTypes);
+          console.log('✨ Final transformed event:', transformedEvent);
+          console.log('🎯 Final ticketTypes:', transformedEvent.ticketTypes);
 
           setEvent(transformedEvent);
 
           // Inicializar quantidades como 0 para todos os bilhetes
-          const initialQuantities: { [key: string]: number } = {};
-          transformedEvent.ticketTypes.forEach((ticket) => {
+          const initialQuantities: {[key: string]: number} = {};
+          transformedEvent.ticketTypes.forEach(ticket => {
             initialQuantities[ticket.id] = 0;
           });
           setTicketQuantities(initialQuantities);
+
         } else {
-          console.log("❌ API response not successful:", data);
-          throw new Error("Dados do evento não disponíveis");
+          console.log('❌ API response not successful:', data);
+          throw new Error('Dados do evento não disponíveis');
         }
       } catch (err) {
-        console.error("💥 Error fetching event:", err);
-        setError(
-          err instanceof Error ? err.message : "Erro ao carregar evento",
-        );
+        console.error('💥 Error fetching event:', err);
+        setError(err instanceof Error ? err.message : 'Erro ao carregar evento');
       } finally {
         setLoading(false);
       }
@@ -332,16 +313,16 @@ export default function EventPurchasePage({
     requireAuth(() => {
       if (!event) return;
 
-      const ticket = event.ticketTypes.find((t) => t.id === ticketId);
+      const ticket = event.ticketTypes.find(t => t.id === ticketId);
       if (!ticket) return;
 
       const currentQuantity = ticketQuantities[ticketId] || 0;
       const maxQuantity = Math.min(ticket.availableQuantity, 10);
 
       if (currentQuantity < maxQuantity) {
-        setTicketQuantities((prev) => ({
+        setTicketQuantities(prev => ({
           ...prev,
-          [ticketId]: currentQuantity + 1,
+          [ticketId]: currentQuantity + 1
         }));
       }
     });
@@ -352,9 +333,9 @@ export default function EventPurchasePage({
       const currentQuantity = ticketQuantities[ticketId] || 0;
 
       if (currentQuantity > 0) {
-        setTicketQuantities((prev) => ({
+        setTicketQuantities(prev => ({
           ...prev,
-          [ticketId]: currentQuantity - 1,
+          [ticketId]: currentQuantity - 1
         }));
       }
     });
@@ -364,15 +345,15 @@ export default function EventPurchasePage({
     requireAuth(() => {
       if (!event) return;
 
-      const ticket = event.ticketTypes.find((t) => t.id === ticketId);
+      const ticket = event.ticketTypes.find(t => t.id === ticketId);
       if (!ticket) return;
 
       const maxQuantity = Math.min(ticket.availableQuantity, 10);
       const newQuantity = Math.max(0, Math.min(quantity, maxQuantity));
 
-      setTicketQuantities((prev) => ({
+      setTicketQuantities(prev => ({
         ...prev,
-        [ticketId]: newQuantity,
+        [ticketId]: newQuantity
       }));
     });
   };
@@ -382,57 +363,35 @@ export default function EventPurchasePage({
     if (!event) return [];
 
     return event.ticketTypes
-      .filter((ticket) => (ticketQuantities[ticket.id] || 0) > 0)
-      .map((ticket) => ({
+      .filter(ticket => (ticketQuantities[ticket.id] || 0) > 0)
+      .map(ticket => ({
         ticketId: ticket.id,
         name: ticket.name,
         type: ticket.type,
         price: ticket.price,
         quantity: ticketQuantities[ticket.id] || 0,
         maxQuantity: Math.min(ticket.availableQuantity, 10),
-        benefits: ticket.benefits,
+        benefits: ticket.benefits
       }));
   };
 
   const cartItems = getCartItems();
-  const subtotal = cartItems.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0,
-  );
-  const serviceFee = subtotal * 0.0;
+  const subtotal = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const serviceFee = subtotal * 0.00;
   const total = subtotal + serviceFee;
-  const totalItems = cartItems.reduce(
-    (total, item) => total + item.quantity,
-    0,
-  );
+  const totalItems = cartItems.reduce((total, item) => total + item.quantity, 0);
 
   // 🔥 FUNÇÃO PARA OBTER COR DO TIPO DE TICKET
   const getTicketTypeColor = (type: string) => {
     switch (type.toLowerCase()) {
-      case "vip":
-        return {
-          bg: "bg-purple-100",
-          text: "text-purple-800",
-          border: "border-purple-200",
-        };
-      case "normal":
-        return {
-          bg: "bg-blue-100",
-          text: "text-blue-800",
-          border: "border-blue-200",
-        };
-      case "premium":
-        return {
-          bg: "bg-yellow-100",
-          text: "text-yellow-800",
-          border: "border-yellow-200",
-        };
+      case 'vip':
+        return { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200' };
+      case 'normal':
+        return { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200' };
+      case 'premium':
+        return { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200' };
       default:
-        return {
-          bg: "bg-gray-100",
-          text: "text-gray-800",
-          border: "border-gray-200",
-        };
+        return { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-200' };
     }
   };
 
@@ -442,10 +401,10 @@ export default function EventPurchasePage({
 
       setIsProcessing(true);
       try {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
         router.push(`/compra-confirmada?event=${event.id}&total=${total}`);
       } catch (err) {
-        console.error("Erro no processamento:", err);
+        console.error('Erro no processamento:', err);
       } finally {
         setIsProcessing(false);
       }
@@ -460,24 +419,9 @@ export default function EventPurchasePage({
   };
 
   const paymentMethods = [
-    {
-      id: "mpesa",
-      name: "M-Pesa",
-      icon: Smartphone,
-      description: "Pagamento rápido via M-Pesa",
-    },
-    {
-      id: "emola",
-      name: "eMola",
-      icon: CreditCard,
-      description: "Cartão ou transferência",
-    },
-    {
-      id: "card",
-      name: "Cartão de Crédito",
-      icon: CreditCard,
-      description: "Visa, Mastercard",
-    },
+    { id: 'mpesa', name: 'M-Pesa', icon: Smartphone, description: 'Pagamento rápido via M-Pesa' },
+    { id: 'emola', name: 'eMola', icon: CreditCard, description: 'Cartão ou transferência' },
+    { id: 'card', name: 'Cartão de Crédito', icon: CreditCard, description: 'Visa, Mastercard' },
   ];
 
   // Mostrar loading enquanto verifica autenticação
@@ -509,7 +453,7 @@ export default function EventPurchasePage({
         <div className="text-center">
           <Ticket className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-foreground mb-2">
-            {error || "Evento não encontrado"}
+            {error || 'Evento não encontrado'}
           </h3>
           <p className="text-muted-foreground mb-6">
             O evento que procura não está disponível.
@@ -555,7 +499,7 @@ export default function EventPurchasePage({
                   Sessão não iniciada
                 </h3>
                 <p className="text-sm text-yellow-700">
-                  Para comprar bilhetes ou adicionar ao carrinho, por favor{" "}
+                  Para comprar bilhetes ou adicionar ao carrinho, por favor{' '}
                   <Link
                     href="/login"
                     className="font-semibold text-yellow-900 hover:text-yellow-800 underline"
@@ -569,6 +513,7 @@ export default function EventPurchasePage({
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
           {/* Coluna Esquerda - Informações do Evento */}
           <div className="lg:col-span-2">
             <motion.div
@@ -576,6 +521,7 @@ export default function EventPurchasePage({
               animate={{ opacity: 1, x: 0 }}
               className="space-y-8"
             >
+
               {/* Cabeçalho do Evento */}
               <div>
                 <div className="flex items-center gap-2 mb-4">
@@ -611,9 +557,7 @@ export default function EventPurchasePage({
 
               {/* Detalhes do Evento */}
               <div className="bg-card border border-border rounded-xl p-6">
-                <h2 className="text-xl font-semibold text-foreground mb-6">
-                  Detalhes do Evento
-                </h2>
+                <h2 className="text-xl font-semibold text-foreground mb-6">Detalhes do Evento</h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
@@ -621,11 +565,11 @@ export default function EventPurchasePage({
                       <Calendar className="w-5 h-5 text-primary" />
                       <div>
                         <div className="font-medium text-foreground">
-                          {new Date(event.date).toLocaleDateString("pt-MZ", {
-                            weekday: "long",
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
+                          {new Date(event.date).toLocaleDateString('pt-MZ', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
                           })}
                         </div>
                         <div className="text-sm text-muted-foreground">
@@ -637,12 +581,8 @@ export default function EventPurchasePage({
                     <div className="flex items-start gap-3">
                       <MapPin className="w-5 h-5 text-primary mt-0.5" />
                       <div>
-                        <div className="font-medium text-foreground">
-                          {event.location}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {event.address}
-                        </div>
+                        <div className="font-medium text-foreground">{event.location}</div>
+                        <div className="text-sm text-muted-foreground">{event.address}</div>
                       </div>
                     </div>
                   </div>
@@ -651,24 +591,16 @@ export default function EventPurchasePage({
                     <div className="flex items-center gap-3">
                       <Users className="w-5 h-5 text-primary" />
                       <div>
-                        <div className="font-medium text-foreground">
-                          Organizador
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {event.organizer}
-                        </div>
+                        <div className="font-medium text-foreground">Organizador</div>
+                        <div className="text-sm text-muted-foreground">{event.organizer}</div>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3">
                       <Shield className="w-5 h-5 text-primary" />
                       <div>
-                        <div className="font-medium text-foreground">
-                          Pagamento Seguro
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Transações 100% protegidas
-                        </div>
+                        <div className="font-medium text-foreground">Pagamento Seguro</div>
+                        <div className="text-sm text-muted-foreground">Transações 100% protegidas</div>
                       </div>
                     </div>
                   </div>
@@ -676,9 +608,7 @@ export default function EventPurchasePage({
 
                 {/* Descrição Longa */}
                 <div className="mt-6 pt-6 border-t border-border">
-                  <h3 className="font-semibold text-foreground mb-3">
-                    Sobre este evento
-                  </h3>
+                  <h3 className="font-semibold text-foreground mb-3">Sobre este evento</h3>
                   <p className="text-muted-foreground leading-relaxed">
                     {event.longDescription}
                   </p>
@@ -687,99 +617,68 @@ export default function EventPurchasePage({
 
               {/* Seleção de Bilhetes */}
               <div className="bg-card border border-border rounded-xl p-6">
-                <h2 className="text-xl font-semibold text-foreground mb-6">
-                  Selecionar Bilhetes
-                </h2>
+                <h2 className="text-xl font-semibold text-foreground mb-6">Selecionar Bilhetes</h2>
 
                 {event.ticketTypes.length === 0 ? (
                   <div className="text-center py-8">
                     <Ticket className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">
-                      Não há bilhetes disponíveis para este evento.
-                    </p>
+                    <p className="text-muted-foreground">Não há bilhetes disponíveis para este evento.</p>
                   </div>
                 ) : (
                   <div className="space-y-6">
                     {event.ticketTypes.map((ticket) => {
                       const typeColors = getTicketTypeColor(ticket.type);
                       const quantity = ticketQuantities[ticket.id] || 0;
-                      const maxQuantity = Math.min(
-                        ticket.availableQuantity,
-                        10,
-                      );
+                      const maxQuantity = Math.min(ticket.availableQuantity, 10);
 
                       return (
                         <div
                           key={ticket.id}
                           className={`border-2 rounded-lg p-6 transition-all ${
                             quantity > 0
-                              ? "border-primary bg-primary/5"
+                              ? 'border-primary bg-primary/5'
                               : `border-border hover:border-primary/50 ${typeColors.border}`
-                          } ${ticket.availableQuantity === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                          } ${ticket.availableQuantity === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-3">
-                                <h3 className="font-semibold text-foreground text-lg">
-                                  {ticket.name}
-                                </h3>
-                                <span
-                                  className={`px-3 py-1 text-xs font-medium rounded-full ${typeColors.bg} ${typeColors.text}`}
-                                >
+                                <h3 className="font-semibold text-foreground text-lg">{ticket.name}</h3>
+                                <span className={`px-3 py-1 text-xs font-medium rounded-full ${typeColors.bg} ${typeColors.text}`}>
                                   {ticket.type.toUpperCase()}
                                 </span>
                                 {quantity > 0 && (
                                   <span className="px-2 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">
-                                    {quantity} selecionado
-                                    {quantity > 1 ? "s" : ""}
+                                    {quantity} selecionado{quantity > 1 ? 's' : ''}
                                   </span>
                                 )}
                               </div>
 
                               {/* 🔥 PREÇO DESTACADO */}
                               <div className="text-3xl font-bold text-foreground mb-4">
-                                {ticket.price.toLocaleString("pt-MZ", {
-                                  style: "currency",
-                                  currency: "MZN",
-                                })}
+                                {ticket.price.toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}
                               </div>
 
                               <div className="text-sm text-muted-foreground mb-4">
-                                <span
-                                  className={`font-medium ${ticket.availableQuantity < 10 ? "text-orange-500" : "text-green-500"}`}
-                                >
-                                  {ticket.availableQuantity} bilhetes
-                                  disponíveis
+                                <span className={`font-medium ${ticket.availableQuantity < 10 ? 'text-orange-500' : 'text-green-500'}`}>
+                                  {ticket.availableQuantity} bilhetes disponíveis
                                 </span>
-                                <span className="text-xs ml-2">
-                                  (máx. {maxQuantity} por compra)
-                                </span>
+                                <span className="text-xs ml-2">(máx. {maxQuantity} por compra)</span>
                               </div>
 
                               {/* 🔥 BENEFÍCIOS - APENAS CHECKCIRCLE */}
                               {ticket.benefits.length > 0 ? (
                                 <div className="mb-4">
-                                  <h4 className="font-medium text-foreground mb-2">
-                                    Benefícios incluídos:
-                                  </h4>
+                                  <h4 className="font-medium text-foreground mb-2">Benefícios incluídos:</h4>
                                   <ul className="space-y-2">
                                     {ticket.benefits.map((benefit, index) => (
-                                      <li
-                                        key={benefit.id || index}
-                                        className="flex items-center gap-3 text-sm"
-                                      >
+                                      <li key={benefit.id || index} className="flex items-center gap-3 text-sm">
                                         <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                                         <div>
-                                          <span className="font-medium text-foreground">
-                                            {benefit.name}
-                                          </span>
-                                          {benefit.description &&
-                                            benefit.description !==
-                                              benefit.name && (
-                                              <p className="text-muted-foreground text-xs">
-                                                {benefit.description}
-                                              </p>
-                                            )}
+                                          <span className="font-medium text-foreground">{benefit.name}</span>
+                                          {benefit.description && benefit.description !== benefit.name && (
+                                            <p className="text-muted-foreground text-xs">{benefit.description}</p>
+                                          )}
                                         </div>
                                       </li>
                                     ))}
@@ -787,12 +686,8 @@ export default function EventPurchasePage({
                                 </div>
                               ) : (
                                 <div className="mb-4">
-                                  <h4 className="font-medium text-foreground mb-2">
-                                    Benefícios:
-                                  </h4>
-                                  <p className="text-sm text-muted-foreground">
-                                    Acesso básico ao evento
-                                  </p>
+                                  <h4 className="font-medium text-foreground mb-2">Benefícios:</h4>
+                                  <p className="text-sm text-muted-foreground">Acesso básico ao evento</p>
                                 </div>
                               )}
 
@@ -803,71 +698,36 @@ export default function EventPurchasePage({
                                 </label>
                                 <div className="flex items-center gap-4">
                                   <div className="flex items-center border border-border rounded-lg">
-                                    <Link
-                                      href="/login"
-                                      className="font-semibold text-yellow-900 hover:text-yellow-800 underline"
+                                    <button
+                                      onClick={() => decreaseQuantity(ticket.id)}
+                                      className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                                      disabled={quantity <= 0 || !isAuthenticatedState}
+                                      title={!isAuthenticatedState ? "Faça login para selecionar bilhetes" : ""}
                                     >
-                                      <button
-                                        onClick={() =>
-                                          decreaseQuantity(ticket.id)
-                                        }
-                                        className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                                        disabled={
-                                          quantity <= 0 || !isAuthenticatedState
-                                        }
-                                        title={
-                                          !isAuthenticatedState
-                                            ? "Faça login para selecionar bilhetes"
-                                            : ""
-                                        }
-                                      >
-                                        <Minus className="w-4 h-4" />
-                                      </button>
-                                    </Link>
+                                      <Minus className="w-4 h-4" />
+                                    </button>
                                     <input
                                       type="number"
                                       min="0"
                                       max={maxQuantity}
                                       value={quantity}
-                                      onChange={(e) =>
-                                        setQuantity(
-                                          ticket.id,
-                                          parseInt(e.target.value) || 0,
-                                        )
-                                      }
+                                      onChange={(e) => setQuantity(ticket.id, parseInt(e.target.value) || 0)}
                                       className="px-4 py-2 font-medium text-foreground w-16 text-center border-0 bg-transparent focus:outline-none"
                                       readOnly={!isAuthenticatedState}
-                                      title={
-                                        !isAuthenticatedState
-                                          ? "Faça login para selecionar bilhetes"
-                                          : ""
-                                      }
+                                      title={!isAuthenticatedState ? "Faça login para selecionar bilhetes" : ""}
                                     />
                                     <button
-                                      onClick={() =>
-                                        increaseQuantity(ticket.id)
-                                      }
+                                      onClick={() => increaseQuantity(ticket.id)}
                                       className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                                      disabled={
-                                        quantity >= maxQuantity ||
-                                        !isAuthenticatedState
-                                      }
-                                      title={
-                                        !isAuthenticatedState
-                                          ? "Faça login para selecionar bilhetes"
-                                          : ""
-                                      }
+                                      disabled={quantity >= maxQuantity || !isAuthenticatedState}
+                                      title={!isAuthenticatedState ? "Faça login para selecionar bilhetes" : ""}
                                     >
                                       <Plus className="w-4 h-4" />
                                     </button>
                                   </div>
                                   <div className="text-sm text-muted-foreground">
                                     <span className="font-medium text-foreground">
-                                      Subtotal:{" "}
-                                      {(ticket.price * quantity).toLocaleString(
-                                        "pt-MZ",
-                                        { style: "currency", currency: "MZN" },
-                                      )}
+                                      Subtotal: {(ticket.price * quantity).toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}
                                     </span>
                                   </div>
                                 </div>
@@ -878,20 +738,18 @@ export default function EventPurchasePage({
                                       className="font-semibold underline hover:text-red-600"
                                     >
                                       Faça login
-                                    </button>{" "}
-                                    para selecionar bilhetes
+                                    </button>
+                                    {' '}para selecionar bilhetes
                                   </p>
                                 )}
                               </div>
 
                               <div className="text-xs text-muted-foreground mt-4 pt-3 border-t border-border">
-                                <strong>Último dia para pagamento:</strong>{" "}
-                                {new Date(
-                                  ticket.lastDayPayment,
-                                ).toLocaleDateString("pt-MZ", {
-                                  day: "numeric",
-                                  month: "long",
-                                  year: "numeric",
+                                <strong>Último dia para pagamento:</strong>{' '}
+                                {new Date(ticket.lastDayPayment).toLocaleDateString('pt-MZ', {
+                                  day: 'numeric',
+                                  month: 'long',
+                                  year: 'numeric'
                                 })}
                               </div>
                             </div>
@@ -913,45 +771,30 @@ export default function EventPurchasePage({
               transition={{ delay: 0.2 }}
               className="sticky top-8 space-y-6"
             >
+
               {/* Resumo do Pedido */}
               <div className="bg-card border border-border rounded-xl p-6">
                 <h2 className="text-xl font-semibold text-foreground mb-4">
-                  Resumo do Pedido{" "}
-                  {totalItems > 0 &&
-                    `(${totalItems} item${totalItems > 1 ? "s" : ""})`}
+                  Resumo do Pedido {totalItems > 0 && `(${totalItems} item${totalItems > 1 ? 's' : ''})`}
                 </h2>
 
                 {cartItems.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">
-                    {!isAuthenticatedState
-                      ? "Faça login para selecionar bilhetes"
-                      : "Nenhum bilhete selecionado"}
+                    {!isAuthenticatedState ? "Faça login para selecionar bilhetes" : "Nenhum bilhete selecionado"}
                   </p>
                 ) : (
                   <>
                     <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
                       {cartItems.map((item) => (
-                        <div
-                          key={item.ticketId}
-                          className="flex justify-between items-start text-sm pb-2 border-b border-border/50"
-                        >
+                        <div key={item.ticketId} className="flex justify-between items-start text-sm pb-2 border-b border-border/50">
                           <div className="flex-1">
-                            <div className="font-medium text-foreground">
-                              {item.name}
-                            </div>
+                            <div className="font-medium text-foreground">{item.name}</div>
                             <div className="text-muted-foreground">
-                              {item.quantity} ×{" "}
-                              {item.price.toLocaleString("pt-MZ", {
-                                style: "currency",
-                                currency: "MZN",
-                              })}
+                              {item.quantity} × {item.price.toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}
                             </div>
                           </div>
                           <div className="text-foreground font-medium text-right">
-                            {(item.price * item.quantity).toLocaleString(
-                              "pt-MZ",
-                              { style: "currency", currency: "MZN" },
-                            )}
+                            {(item.price * item.quantity).toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}
                           </div>
                         </div>
                       ))}
@@ -960,12 +803,7 @@ export default function EventPurchasePage({
                     <div className="border-t border-border pt-4">
                       <div className="flex justify-between items-center text-lg font-bold text-foreground">
                         <span>Total</span>
-                        <span>
-                          {total.toLocaleString("pt-MZ", {
-                            style: "currency",
-                            currency: "MZN",
-                          })}
-                        </span>
+                        <span>{total.toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN' })}</span>
                       </div>
                     </div>
                   </>
@@ -975,9 +813,7 @@ export default function EventPurchasePage({
               {/* Método de Pagamento - Só mostra se houver itens no carrinho */}
               {cartItems.length > 0 && (
                 <div className="bg-card border border-border rounded-xl p-6">
-                  <h2 className="text-xl font-semibold text-foreground mb-4">
-                    Método de Pagamento
-                  </h2>
+                  <h2 className="text-xl font-semibold text-foreground mb-4">Método de Pagamento</h2>
 
                   <div className="space-y-3">
                     {paymentMethods.map((method) => (
@@ -985,22 +821,16 @@ export default function EventPurchasePage({
                         key={method.id}
                         className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
                           selectedPayment === method.id
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        } ${!isAuthenticatedState ? "opacity-50 cursor-not-allowed" : ""}`}
-                        onClick={() =>
-                          isAuthenticatedState && setSelectedPayment(method.id)
-                        }
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        } ${!isAuthenticatedState ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => isAuthenticatedState && setSelectedPayment(method.id)}
                       >
                         <div className="flex items-center gap-3">
                           <method.icon className="w-5 h-5 text-primary" />
                           <div className="flex-1">
-                            <div className="font-medium text-foreground">
-                              {method.name}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {method.description}
-                            </div>
+                            <div className="font-medium text-foreground">{method.name}</div>
+                            <div className="text-sm text-muted-foreground">{method.description}</div>
                           </div>
                           {selectedPayment === method.id && (
                             <CheckCircle className="w-5 h-5 text-primary" />
@@ -1016,8 +846,8 @@ export default function EventPurchasePage({
                         className="font-semibold underline hover:text-red-600"
                       >
                         Faça login
-                      </button>{" "}
-                      para selecionar método de pagamento
+                      </button>
+                      {' '}para selecionar método de pagamento
                     </p>
                   )}
                 </div>
@@ -1030,14 +860,14 @@ export default function EventPurchasePage({
                   <ButtonOpenModalPay
                     event={{
                       id: event.id,
-                      title: event.title,
+                      title: event.title
                     }}
-                    tickets={event.ticketTypes.map((ticket) => ({
+                    tickets={event.ticketTypes.map(ticket => ({
                       id: ticket.id,
                       name: ticket.name,
                       price: ticket.price,
                       type: ticket.type,
-                      quantity: ticketQuantities[ticket.id] || 0,
+                      quantity: ticketQuantities[ticket.id] || 0
                     }))}
                     fullWidth
                     size="lg"
@@ -1054,9 +884,8 @@ export default function EventPurchasePage({
                 )}
 
                 {/* Botão Adicionar ao Carrinho */}
-                {event &&
-                  cartItems.length > 0 &&
-                  (isAuthenticatedState ? (
+                {event && cartItems.length > 0 && (
+                  isAuthenticatedState ? (
                     <ButtonCart
                       event={event}
                       cartItems={cartItems}
@@ -1070,7 +899,8 @@ export default function EventPurchasePage({
                       <LogIn className="w-5 h-5" />
                       Faça login para adicionar ao carrinho
                     </button>
-                  ))}
+                  )
+                )} 
               </div>
 
               {/* Garantias */}

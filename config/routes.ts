@@ -17,7 +17,7 @@ export const routes = {
   payments_transference_create: `${API_BASE_URL}/payments/transference/create`,
   carts: `${API_BASE_URL}/carts`,
   events: `${API_BASE_URL}/events`,
-  payments_transfer_proof: `${API_BASE_URL}/payments/transfer-proof`,
+  payments_transfer_proof: `${API_BASE_URL_CO}/payments/transfer-proof`,
   payments_create: `${API_BASE_URL}/payments/create`,
   deliveries: `${API_BASE_URL}/deliveries`,
   payments_list: `${API_BASE_URL}/payments/list`,
