@@ -44,7 +44,6 @@ export default function ModalPay({ isOpen, onClose, event, tickets }: ModalPayPr
   const [processing, setProcessing] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [proofImage, setProofImage] = useState<File | null>(null);
-  const [referenceNumber, setReferenceNumber] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -198,11 +197,6 @@ export default function ModalPay({ isOpen, onClose, event, tickets }: ModalPayPr
   const processTransferPayment = async () => {
     if (!proofImage) {
       toast.error('Por favor, faça upload do comprovativo');
-      return;
-    }
-
-    if (!referenceNumber) {
-      toast.error('Por favor, insira o número de referência');
       return;
     }
 
@@ -493,8 +487,6 @@ export default function ModalPay({ isOpen, onClose, event, tickets }: ModalPayPr
                           </h4>
                           
                           <div className="space-y-2">
-                            
-
                             <div>
                               <label className="block text-xs sm:text-sm font-medium text-foreground mb-1 sm:mb-2">
                                 Comprovativo de Transferência *
@@ -547,7 +539,7 @@ export default function ModalPay({ isOpen, onClose, event, tickets }: ModalPayPr
                   disabled={processing || 
                     totalItems === 0 ||
                     (selectedPayment === 'mpesa' && (!phoneNumber || !validatePhoneNumber(phoneNumber))) ||
-                    (selectedPayment === 'transference' && (!proofImage || !referenceNumber))}
+                    (selectedPayment === 'transference' && !proofImage)}
                   className="w-full py-3 sm:py-4 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base shadow-lg"
                 >
                   {processing ? (
@@ -566,20 +558,6 @@ export default function ModalPay({ isOpen, onClose, event, tickets }: ModalPayPr
                     </>
                   )}
                 </button>
-
-                {/* Debug apenas em desktop */}
-                {/* {process.env.NODE_ENV === 'development' && !isMobile && (
-                  <div className="mt-4 p-3 bg-gray-100 rounded-lg text-xs hidden sm:block">
-                    <div className="font-semibold mb-1">Payload que será enviado:</div>
-                    <pre className="whitespace-pre-wrap text-xs">
-                      {JSON.stringify({
-                        paymentMethod: selectedPayment,
-                        phoneNumber: selectedPayment === 'mpesa' ? phoneNumber : undefined,
-                        items: getPaymentItems()
-                      }, null, 2)}
-                    </pre>
-                  </div>
-                )} */}
               </div>
             </div>
           </motion.div>

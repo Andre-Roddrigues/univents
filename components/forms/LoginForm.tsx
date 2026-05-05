@@ -57,8 +57,16 @@ export default function LoginForm() {
 
       if (user.userType === "admin") {
         router.push("/eventos/dashboard");
+        // Refresh após navegação
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
       } else {
         router.push(redirectUrl);
+        // Refresh após navegação
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
       }
     } catch (error) {
       console.error("Erro inesperado ao tentar fazer login.", error);
