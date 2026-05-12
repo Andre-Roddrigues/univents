@@ -285,7 +285,7 @@ const generateSimpleQR = async (ticket: LocalTicket): Promise<string> => {
       </p>
       <button 
         onClick={() => window.location.href = '/eventos'}
-        className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+        className="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/70 transition-colors"
       >
         Ver eventos disponíveis
       </button>

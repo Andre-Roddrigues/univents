@@ -14,11 +14,8 @@ const HeroSection = () => {
   const [totalEvents, setTotalEvents] = useState(0);
 
   useEffect(() => {
-    // Simulação de fetch de eventos
     const fetchEvents = async () => {
       try {
-        // Substituir por sua API real
-        // const events = await getAllEvents();
         setTotalEvents(1250); // Número fictício para demonstração
       } catch (error) {
         console.error("Erro ao buscar eventos:", error);
@@ -103,7 +100,7 @@ const HeroSection = () => {
               </Button>
               
               <Button className="p-6 text-lg bg-primary border-2 border-primary text-white hover:bg-primary/80 font-bold rounded-xl backdrop-blur-sm transition-all duration-300 transform hover:-translate-y-1">
-                <Link href={"/vender"} className="flex items-center gap-2">
+                <Link href={"https://associado-co.vercel.app/"} className="flex items-center gap-2">
                   <Ticket className="w-5 h-5" />
                   Vender Bilhetes
                 </Link>

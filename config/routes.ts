@@ -29,4 +29,5 @@ export const routes = {
   cart_remove: `${API_BASE_URL}/carts/remove-items`,
   cart_update: `${API_BASE_URL}/carts/update-items`,
   cart_clear: `${API_BASE_URL}/carts/clear-cart`,
+  direct_payment: `${API_BASE_URL_CO}/payments/direct`,
 };

@@ -1,5 +1,6 @@
 "use server";
 
+import { routes } from "@/config/routes";
 import { cookies } from "next/headers";
 
 function getToken() {
@@ -30,7 +31,7 @@ export async function directPayment(data: {
     };
 
     const res = await fetch(
-      "https://backend-eventos.unitec.academy/payments/create",
+      routes.direct_payment,
       {
         method: "POST",
         headers: {
