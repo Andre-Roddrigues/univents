@@ -20,7 +20,6 @@ export async function directPayment(data: {
   try {
     const token = getToken();
 
-    // 🔥 Monta o payload SEMPRE no formato exigido pelo backend
     const payload = {
       paymentMethod: data.paymentMethod,
       phoneNumber: data.phoneNumber,
@@ -44,7 +43,6 @@ export async function directPayment(data: {
 
     const response = await res.json();
 
-    // 👉 Extrair mensagem sempre, independente do formato
     const mensagem =
       response?.message?.mensagem ||
       response?.message ||
@@ -54,7 +52,7 @@ export async function directPayment(data: {
     return {
       success: response.success === true,
       mensagem,
-      raw: response, // resposta completa
+      raw: response, 
     };
   } catch (error) {
     console.error("Erro no pagamento:", error);

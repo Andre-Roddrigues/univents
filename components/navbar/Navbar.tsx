@@ -90,8 +90,8 @@ function Navbar() {
 
     window.addEventListener("cartUpdated", handleCartUpdate);
 
-    // Polling a cada 10 segundos
-    const interval = setInterval(updateCartCount, 10000);
+    // Polling a cada 60 segundos
+    const interval = setInterval(updateCartCount, 60000);
 
     return () => {
       window.removeEventListener("cartUpdated", handleCartUpdate);

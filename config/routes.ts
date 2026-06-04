@@ -14,7 +14,7 @@ export const routes = {
   resend_otp: `${API_BASE_URL}/resendotpuser`,
   request_password_recovery: `${API_BASE_URL}/request-password-recovery`,
   reset_password: `${API_BASE_URL}/reset-password`,
-  payments_transference_create: `${API_BASE_URL}/payments/transference/create`,
+  payments_transference_create: `${API_BASE_URL}/payments/create`,
   carts: `${API_BASE_URL}/carts`,
   events: `${API_BASE_URL}/events`,
   payments_transfer_proof: `${API_BASE_URL_CO}/payments/transfer-proof`,
@@ -29,5 +29,5 @@ export const routes = {
   cart_remove: `${API_BASE_URL}/carts/remove-items`,
   cart_update: `${API_BASE_URL}/carts/update-items`,
   cart_clear: `${API_BASE_URL}/carts/clear-cart`,
-  direct_payment: `${API_BASE_URL_CO}/payments/transference/create`,
+  direct_payment: `${API_BASE_URL}/payments/create`,
 };

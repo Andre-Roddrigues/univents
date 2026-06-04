@@ -119,7 +119,6 @@ export async function createPayment(data: PaymentPayload): Promise<ApiResponse> 
       };
     }
 
-    // Para pagamentos por transferência (será implementado separadamente)
     return {
       success: false,
       message: "Método de pagamento não implementado",
