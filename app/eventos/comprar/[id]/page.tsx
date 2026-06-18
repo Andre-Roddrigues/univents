@@ -153,7 +153,7 @@ export default function EventPurchasePage({
     // Salvar a URL atual para redirecionar de volta após o login
     const currentPath = window.location.pathname;
     sessionStorage.setItem("redirectAfterLogin", currentPath);
-    // router.push(`${routes.auth.login}?redirect=${encodeURIComponent(currentPath)}`);
+    router.push(`${routes.loginredirect}?redirect=${encodeURIComponent(currentPath)}`);
   };
 
   // Função para verificar autenticação antes de qualquer ação
@@ -302,10 +302,15 @@ export default function EventPurchasePage({
 
           setEvent(transformedEvent);
 
-          // Inicializar quantidades como 0 para todos os bilhetes
+          // Inicializar quantidades: primeiro bilhete com 1, resto com 0
           const initialQuantities: { [key: string]: number } = {};
-          transformedEvent.ticketTypes.forEach((ticket) => {
-            initialQuantities[ticket.id] = 0;
+          transformedEvent.ticketTypes.forEach((ticket, index) => {
+            // Se for o primeiro bilhete e estiver autenticado, coloca 1
+            if (index === 0 && isAuthenticatedState) {
+              initialQuantities[ticket.id] = 1;
+            } else {
+              initialQuantities[ticket.id] = 0;
+            }
           });
           setTicketQuantities(initialQuantities);
         } else {
@@ -325,7 +330,7 @@ export default function EventPurchasePage({
     if (params.id) {
       fetchEventData();
     }
-  }, [params.id]);
+  }, [params.id, isAuthenticatedState]); // Adiciona isAuthenticatedState como dependência
 
   // Funções para gerenciar quantidades (com verificação de autenticação)
   const increaseQuantity = (ticketId: string) => {
@@ -803,38 +808,33 @@ export default function EventPurchasePage({
                                 </label>
                                 <div className="flex items-center gap-4">
                                   <div className="flex items-center border border-border rounded-lg">
-                                    <Link
-                                      href="/login"
-                                      className="font-semibold text-yellow-900 hover:text-yellow-800 underline"
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        decreaseQuantity(ticket.id);
+                                      }}
+                                      className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                                      disabled={
+                                        quantity <= 0 || !isAuthenticatedState
+                                      }
+                                      title={
+                                        !isAuthenticatedState
+                                          ? "Faça login para selecionar bilhetes"
+                                          : ""
+                                      }
+                                      type="button"
                                     >
-                                      <button
-                                        onClick={() =>
-                                          decreaseQuantity(ticket.id)
-                                        }
-                                        className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                                        disabled={
-                                          quantity <= 0 || !isAuthenticatedState
-                                        }
-                                        title={
-                                          !isAuthenticatedState
-                                            ? "Faça login para selecionar bilhetes"
-                                            : ""
-                                        }
-                                      >
-                                        <Minus className="w-4 h-4" />
-                                      </button>
-                                    </Link>
+                                      <Minus className="w-4 h-4" />
+                                    </button>
                                     <input
                                       type="number"
                                       min="0"
                                       max={maxQuantity}
                                       value={quantity}
-                                      onChange={(e) =>
-                                        setQuantity(
-                                          ticket.id,
-                                          parseInt(e.target.value) || 0,
-                                        )
-                                      }
+                                      onChange={(e) => {
+                                        const value = parseInt(e.target.value) || 0;
+                                        setQuantity(ticket.id, value);
+                                      }}
                                       className="px-4 py-2 font-medium text-foreground w-16 text-center border-0 bg-transparent focus:outline-none"
                                       readOnly={!isAuthenticatedState}
                                       title={
@@ -844,9 +844,10 @@ export default function EventPurchasePage({
                                       }
                                     />
                                     <button
-                                      onClick={() =>
-                                        increaseQuantity(ticket.id)
-                                      }
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        increaseQuantity(ticket.id);
+                                      }}
                                       className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                                       disabled={
                                         quantity >= maxQuantity ||
@@ -857,6 +858,7 @@ export default function EventPurchasePage({
                                           ? "Faça login para selecionar bilhetes"
                                           : ""
                                       }
+                                      type="button"
                                     >
                                       <Plus className="w-4 h-4" />
                                     </button>
@@ -876,6 +878,7 @@ export default function EventPurchasePage({
                                     <button
                                       onClick={redirectToLogin}
                                       className="font-semibold underline hover:text-red-600"
+                                      type="button"
                                     >
                                       Faça login
                                     </button>{" "}
@@ -1014,6 +1017,7 @@ export default function EventPurchasePage({
                       <button
                         onClick={redirectToLogin}
                         className="font-semibold underline hover:text-red-600"
+                        type="button"
                       >
                         Faça login
                       </button>{" "}
@@ -1047,6 +1051,7 @@ export default function EventPurchasePage({
                   <button
                     onClick={redirectToLogin}
                     className="w-full py-4 bg-gray-400 text-gray-100 rounded-xl font-bold text-lg hover:bg-gray-500 transition-all duration-300 flex items-center justify-center gap-2"
+                    type="button"
                   >
                     <LogIn className="w-5 h-5" />
                     Faça login para comprar
@@ -1066,6 +1071,7 @@ export default function EventPurchasePage({
                     <button
                       onClick={redirectToLogin}
                       className="w-full py-4 bg-secondary text-secondary-foreground rounded-xl font-bold text-lg hover:bg-secondary/90 transition-all duration-300 flex items-center justify-center gap-2"
+                      type="button"
                     >
                       <LogIn className="w-5 h-5" />
                       Faça login para adicionar ao carrinho
